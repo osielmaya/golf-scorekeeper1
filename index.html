@@ -242,8 +242,11 @@
         <button id="closeKeypad" class="ghost">Close</button>
       </div>
       <div class="gridnums" id="keypad"></div>
-      <div class="row" style="margin-top:10px">
-        <input id="directInput" type="number" min="0" max="20" class="flex" placeholder="Or type a number" />
+      <div class="row" style="margin-top:10px;justify-content:flex-end">
+        <button id="moreBtn" class="ghost">More…</button>
+      </div>
+      <div class="row" id="manualRow" style="margin-top:10px; display:none">
+        <input id="directInput" type="number" min="0" max="20" class="flex" placeholder="Type 9–15" />
         <button id="applyDirect">Apply</button>
       </div>
     </div>
@@ -359,8 +362,11 @@ const scoreMode = el('scoreMode');
 const overlay = el('overlay');
 const keypad = el('keypad');
 const directInput = el('directInput');
+const moreBtn = el('moreBtn');
+const manualRow = el('manualRow');
 el('closeKeypad').onclick = ()=> overlay.style.display='none';
-el('applyDirect').onclick = ()=>{ const v = Math.max(0, Math.min(20, parseInt(directInput.value||'0',10)||0)); if(keypadTarget){ setScore(keypadTarget.pid, keypadTarget.idx, v); } overlay.style.display='none'; };
+el('applyDirect').onclick = ()=>{ const v = Math.max(0, Math.min(20, parseInt(directInput.value||'0',10)||0)); if(keypadTarget){ setScore(keypadTarget.pid, keypadTarget.idx, v); } overlay.style.display='none'; manualRow.style.display='none'; };
+moreBtn.onclick = ()=>{ manualRow.style.display = 'flex'; setTimeout(()=> directInput.focus(), 10); };
 
 /* ---------- Rendering ---------- */
 function renderCourseSelect(){
@@ -384,7 +390,7 @@ function renderPlayersChips(){
 function openKeypad(pid, idx, current){
   keypadTarget = {pid, idx};
   keypad.innerHTML='';
-  for(let n=1;n<=15;n++){
+  for(let n=1;n<=8;n++){
     const b=document.createElement('button'); b.textContent=String(n);
     b.onclick=()=>{ setScore(pid, idx, n); overlay.style.display='none'; };
     keypad.appendChild(b);
@@ -664,7 +670,7 @@ function saveAll(){ save(LS.players,players); save(LS.courses,courses); save(LS.
 /* ---------- Init ---------- */
 function renderAll(){ renderCourseSelect(); renderPlayersChips(); renderSetupPlayers(); renderVCard(); renderRounds(); renderTeamsTab(); renderLiveLeaderboard(); renderSeasonLeaderboard(); scoreMode.value = mode; leaderMode.value = mode; }
 function init(){ renderAll(); const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalInput(d); 
-  keypad.innerHTML=''; for(let n=1;n<=15;n++){ const b=document.createElement('button'); b.textContent=String(n); b.onclick=()=>{ if(keypadTarget) setScore(keypadTarget.pid, keypadTarget.idx, n); overlay.style.display='none'; }; keypad.appendChild(b); }
+  keypad.innerHTML=''; for(let n=1;n<=8;n++){ const b=document.createElement('button'); b.textContent=String(n); b.onclick=()=>{ if(keypadTarget) setScore(keypadTarget.pid, keypadTarget.idx, n); overlay.style.display='none'; }; keypad.appendChild(b); }
 }
 init();
 </script>
