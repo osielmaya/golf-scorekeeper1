@@ -705,15 +705,31 @@ function loadDraft(){ const d=load(LS.draft, null); if(!d) return false; try{ if
 
 /* ---------- Init ---------- */
 function init(){
+  // Ensure base arrays exist
+  if(!Array.isArray(players)) players=[];
+  if(players.length===0){ players=[{id:uid(),name:'Eric'},{id:uid(),name:'Luz'},{id:uid(),name:'Osiel'},{id:uid(),name:'Francisco'},{id:uid(),name:'Javier'},{id:uid(),name:'Rafael'}]; }
+  if(!Array.isArray(courses) || courses.length===0){ courses=[{id:uid(), name:'Potrero Golf Course', holes:Array.from({length:9},(_,i)=>({number:i+1,name:`Hole ${i+1}`}))}]; }
+  if(!activeCourseId){ activeCourseId=courses[0].id; }
+  if(!scores || typeof scores!=='object') scores={};
+  if(!Array.isArray(selectedPlayerIds) || selectedPlayerIds.length===0){ selectedPlayerIds = players.slice(0,4).map(p=>p.id); }
+  selectedPlayerIds.forEach(pid=>{ if(!Array.isArray(scores[pid])) scores[pid]=Array(9).fill(0); });
+  if(!teamScores || typeof teamScores!=='object'){ teamScores={t1:Array(9).fill(0), t2:Array(9).fill(0), t3:Array(9).fill(0)}; }
+
+  // Try draft restore now
+  const hadDraft = loadDraft();
+
   renderCourseSelect();
   renderPlayersChips();
   renderSetupPlayers();
   renderTeamsTab();
-  const hadDraft = loadDraft();
   renderVCard();
   renderLiveLeaderboard();
   renderSeasonLeaderboard();
-  if(!hadDraft){ const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalDate(d); saveDraft(); }
+
+  if(!hadDraft){ if(!dateInput.value){ const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalDate(d);} saveDraft(); }
+
+  // Extra auto-save guard every 10s
+  setInterval(()=>{ try{ saveDraft(); }catch(e){} }, 10000);
 }
 init();
 
@@ -742,6 +758,7 @@ function computeWinners(){
   }
 }
 function finalizeRound(){
+  saveDraft();
   const modeNow = load(LS.mode, 'individual');
   const winners = computeWinners();
   if(winners.length===0){ alert('No scores yet. Enter some scores first.'); return; }
