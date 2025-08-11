@@ -1,5 +1,5 @@
-// Cache-first service worker (bump version to refresh installs)
-const CACHE_NAME = 'golf9-vertical-v2';
+// Cache-first service worker (v3 for keypad/teams build)
+const CACHE_NAME = 'golf9-vertical-v3';
 const ASSETS = [
   './',
   './index.html',
