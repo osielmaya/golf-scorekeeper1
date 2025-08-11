@@ -43,7 +43,7 @@ thead th{position:sticky;top:0;background:#f3f4f6;z-index:1}
 <body>
 <div class="wrap">
   <h1>Potrero Golf Course — 9‑Hole Scorekeeper</h1>
-  <p class="muted">Build: <strong>clean-rebuild</strong></p>
+  <p class="muted">Build: <strong>clean-rebuild-preset</strong></p>
 
   <div class="tabs">
     <div class="tab active" data-tab="score">Scorecard</div>
@@ -192,6 +192,18 @@ function uid(){return (crypto.randomUUID?crypto.randomUUID():Math.random().toStr
 
 // ---- data ----
 let players=load(LS.players,[]);
+// Ensure preset players exist (merge if missing)
+(function ensurePresetPlayers(){
+  const required = ['Eric','Luz','Osiel','Francisco','Javier','Rafael'];
+  const lower = new Set(players.map(p => (p.name||'').toLowerCase()));
+  required.forEach(n => {
+    if(!lower.has(n.toLowerCase())){
+      players.push({id:uid(), name:n});
+      lower.add(n.toLowerCase());
+    }
+  });
+  save(LS.players, players);
+})();
 let rounds=load(LS.rounds,[]);
 let teams=load(LS.teams,{t1:{name:'Team 1',members:[]},t2:{name:'Team 2',members:[]},t3:{name:'Team 3',members:[]}});
 let mode=load(LS.mode,'individual');
