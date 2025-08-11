@@ -55,6 +55,7 @@
     .gridnums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
     .gridnums button{height:54px;border-radius:12px;border:1px solid var(--border);background:#f8fafc;font-size:24px;font-weight:bold;color:#000}
     .sheet-h{display:flex;align-items:center;gap:8px;justify-content:space-between}
+    .club-title{font-size:1.6rem;font-weight:800;text-align:center;margin:0 0 8px 0}
   </style>
 </head>
 <body>
@@ -75,10 +76,7 @@
     <div id="tab-score" class="tabview">
       <div class="card">
         <div class="card-h">
-          <div>
-            <h2>Scorecard</h2>
-            <div class="muted">Individuals: players as columns. Teams: Team 1/2/3 as columns. Tap a cell → keypad 1–8; tap More… to type 9–15.</div>
-          </div>
+          <div></div>
           <div class="row">
             <div class="row" style="align-items:center">
               <label class="small">Mode</label>
@@ -93,6 +91,7 @@
           </div>
         </div>
         <div class="card-c">
+          <h2 class="club-title">Potrero Country Club</h2>
           <div class="row">
             <div class="flex">
               <label class="small">Course</label>
@@ -100,7 +99,7 @@
             </div>
             <div>
               <label class="small">Date</label>
-              <input id="dateInput" type="datetime-local" />
+              <input id="dateInput" type="date" />
             </div>
           </div>
 
@@ -165,6 +164,7 @@
       <div class="card">
         <div class="card-h"><h2>Teams</h2></div>
         <div class="card-c">
+          <h2 class="club-title">Potrero Country Club</h2>
           <div class="row">
             <div class="flex">
               <label class="small">Team 1 name</label>
@@ -189,6 +189,7 @@
       <div class="card">
         <div class="card-h"><h2>Courses</h2></div>
         <div class="card-c">
+          <h2 class="club-title">Potrero Country Club</h2>
           <div class="row">
             <input id="courseName" class="flex" placeholder="Course name" />
             <button class="ghost" id="newCourseBtn">New Course</button>
@@ -214,6 +215,7 @@
       <div class="card">
         <div class="card-h"><h2>Backup</h2></div>
         <div class="card-c">
+          <h2 class="club-title">Potrero Country Club</h2>
           <div class="row">
             <button id="btnExport">Export JSON</button>
             <input id="fileInput" type="file" accept="application/json" style="display:none" />
@@ -312,6 +314,7 @@ function load(key, fallback){ try{ const v = localStorage.getItem(key); return v
 function save(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch{} }
 function nextSunday() { const now = new Date(); const day = now.getDay(); const diff = (7 - day) % 7; const d = new Date(now); d.setDate(now.getDate() + diff); d.setHours(9,0,0,0); return d; }
 function toLocalInput(dt){ const pad = n => String(n).padStart(2,'0'); return dt.getFullYear()+"-"+pad(dt.getMonth()+1)+"-"+pad(dt.getDate())+"T"+pad(dt.getHours())+":"+pad(dt.getMinutes()); }
+function toLocalDate(dt){ const pad = n => String(n).padStart(2,'0'); return dt.getFullYear()+"-"+pad(dt.getMonth()+1)+"-"+pad(dt.getDate()); }
 function download(filename, text, mime="text/plain"){ const blob = new Blob([text], {type:mime+";charset=utf-8"}); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); }
 
 /* ---------- Data ---------- */
@@ -573,7 +576,7 @@ function renderRounds(){
 function startNewRound(){ const d=nextSunday(); dateISO=d.toISOString();
   scores={}; selectedPlayerIds.forEach(pid => scores[pid]=Array(9).fill(0));
   teamScores={t1:Array(9).fill(0), t2:Array(9).fill(0), t3:Array(9).fill(0)};
-  dateInput.value = toLocalInput(new Date(dateISO));
+  dateInput.value = toLocalDate(new Date(dateISO));
   saveAll();
   renderVCard(); renderLiveLeaderboard();
 }
@@ -683,7 +686,7 @@ function init(){
   renderVCard();
   renderLiveLeaderboard();
   renderSeasonLeaderboard();
-  const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalInput(d);
+  const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalDate(d);
 }
 init();
 </script>
