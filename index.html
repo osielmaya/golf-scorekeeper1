@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>9‑Hole Golf Scorekeeper</title>
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style>
+    :root{
+      --bg:#f6f7fb;--card:#ffffff;--ink:#0f172a;--muted:#6b7280;--border:#e5e7eb;--accent:#111827;
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+      background:var(--bg); color:var(--ink);}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px;padding-bottom:calc(env(safe-area-inset-bottom,0) + 16px);}
+    h1{font-size:1.6rem;margin:8px 0 12px 0}
+    .tabs{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+    .tab{border:1px solid var(--border);padding:8px 12px;border-radius:999px;background:#fff;cursor:pointer}
+    .tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media (min-width:1000px){ .grid{grid-template-columns:2fr 1fr} }
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 6px 20px rgba(0,0,0,.04)}
+    .card-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+    .card-h h2{font-size:1rem;margin:0}
+    .muted{color:var(--muted);font-size:.9rem}
+    .card-c{padding:12px 14px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .row>.flex{flex:1}
+    label.small{font-size:.75rem;color:var(--muted);display:block;margin-bottom:4px}
+    input,select,button{height:44px;border-radius:12px;border:1px solid var(--border);padding:0 12px;font-size:16px;background:#fff}
+    button{background:var(--ink);color:#fff;border-color:var(--ink);cursor:pointer}
+    button.ghost{background:#fff;color:#111827;border-color:var(--border)}
+    button.warn{background:#ef4444;border-color:#ef4444}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;font-size:16px}
+    .chip input{width:18px;height:18px}
+    table{width:100%;border-collapse:separate;border-spacing:0;overflow:auto}
+    thead th{position:sticky;top:0;background:#f3f4f6;z-index:1}
+    th,td{border-bottom:1px solid var(--border);padding:10px;text-align:center}
+    td:first-child,th:first-child{text-align:left}
+    .bigcell{display:flex;align-items:center;justify-content:center;gap:6px}
+    .bigbtn{width:42px;height:42px;border-radius:11px;background:#fff;color:#111;border:1px solid var(--border);font-size:22px;line-height:1}
+    .scoreinput{width:72px;text-align:center;font-size:22px;height:48px}
+    .pill{border-radius:999px;padding:4px 8px;font-size:.95rem}
+    .good{color:#059669} .bad{color:#dc2626}
+    .section{margin:12px 0}
+    .list{display:flex;flex-direction:column;gap:8px}
+    .item{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff}
+    footer{margin:16px 0;color:var(--muted);font-size:.8rem;text-align:center}
+    .install-hint{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:680px;background:#111827;color:#fff;padding:10px 12px;border-radius:12px 12px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.25);display:none}
+    .install-hint button{background:#fff;color:#111827;border-color:#fff}
+    .leader-row{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;background:#fff}
+    .leader-rank{font-weight:700;width:36px;text-align:center}
+    .leader-name{flex:1}
+    .leader-score{font-weight:700;min-width:70px;text-align:right}
+    .subtitle{font-size:.9rem;color:var(--muted);margin-top:4px}
+    .vscore{overflow:auto;border:1px solid var(--border);border-radius:12px;background:#fff}
+    .namecell{position:sticky;left:0;background:#fff;border-right:1px solid var(--border)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>9‑Hole Golf Scorekeeper</h1>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="score">Scorecard</div>
+      <div class="tab" data-tab="leaderboard">Leaderboard</div>
+      <div class="tab" data-tab="history">Past Rounds</div>
+      <div class="tab" data-tab="backup">Backup</div>
+    </div>
+
+    <div id="tab-score" class="tabview">
+      <div class="grid">
+        <!-- Left: Scorecard -->
+        <div class="card">
+          <div class="card-h">
+            <div>
+              <h2>Scorecard</h2>
+              <div class="muted">Rows = Hole 1…9, Columns = Players (stroke play).</div>
+            </div>
+            <div class="row">
+              <button id="btnNew">New Round</button>
+              <button id="btnSave">Save</button>
+              <button class="ghost" id="btnCSV">CSV</button>
+            </div>
+          </div>
+          <div class="card-c">
+            <div class="row section">
+              <div class="flex">
+                <label class="small">Course</label>
+                <select id="courseSelect"></select>
+              </div>
+              <div>
+                <label class="small">Date</label>
+                <input id="dateInput" type="datetime-local" />
+              </div>
+            </div>
+
+            <div class="section">
+              <label class="small">Players</label>
+              <div id="playersChips" class="row"></div>
+            </div>
+
+            <div class="section vscore">
+              <table id="vTable">
+                <thead id="vHead"></thead>
+                <tbody id="vBody"></tbody>
+              </table>
+            </div>
+            <div class="muted">Tap +/− or type. Lower total wins.</div>
+          </div>
+        </div>
+
+        <!-- Right: Setup -->
+        <div class="card">
+          <div class="card-h"><h2>Setup</h2></div>
+          <div class="card-c">
+            <div>
+              <h3 style="margin:4px 0 8px 0">Players</h3>
+              <div class="list" id="playersList"></div>
+              <div class="row" style="margin-top:8px">
+                <input id="newPlayerName" class="flex" placeholder="Add player name" />
+                <button id="addPlayerBtn">Add</button>
+              </div>
+            </div>
+            <div class="section">
+              <h3 style="margin:12px 0 8px 0">Course</h3>
+              <div class="row">
+                <input id="courseName" class="flex" />
+                <button class="ghost" id="newCourseBtn">New Course</button>
+                <button class="warn" id="delCourseBtn">Delete</button>
+              </div>
+              <div id="holesGrid" class="list" style="margin-top:8px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-leaderboard" class="tabview" style="display:none">
+      <div class="card">
+        <div class="card-h"><h2>Live Leaderboard</h2></div>
+        <div class="card-c">
+          <div class="subtitle">Updates as you enter strokes for this round.</div>
+          <div id="liveLeaders" class="list" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="card-h"><h2>Season Standings</h2></div>
+        <div class="card-c">
+          <div class="subtitle">Averages across all saved rounds (lower is better).</div>
+          <div id="seasonLeaders" class="list" style="margin-top:10px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-history" class="tabview" style="display:none">
+      <div class="card">
+        <div class="card-h"><h2>Past Rounds</h2></div>
+        <div class="card-c">
+          <div id="roundsList" class="list"><div class="muted">No rounds saved yet.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-backup" class="tabview" style="display:none">
+      <div class="card">
+        <div class="card-h"><h2>Backup</h2></div>
+        <div class="card-c">
+          <div class="row">
+            <button id="btnExport">Export JSON</button>
+            <input id="fileInput" type="file" accept="application/json" style="display:none" />
+            <button class="ghost" id="btnImport">Import JSON</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Installable PWA • Offline ready • Data stays on your device</footer>
+  </div>
+
+  <div id="installHint" class="install-hint">
+    <span>Install this app: on iPhone tap <strong>Share</strong> → <strong>Add to Home Screen</strong>; on Android tap the menu → <strong>Install app</strong>.</span>
+    <button id="installBtn" style="margin-left:8px">Install</button>
+  </div>
+
+<script>
+/* ---------- Tabs ---------- */
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    const name = t.dataset.tab;
+    document.querySelectorAll('.tabview').forEach(v => v.style.display='none');
+    document.getElementById('tab-'+name).style.display='block';
+    if(name==='leaderboard'){ renderLiveLeaderboard(); renderSeasonLeaderboard(); }
+    if(name==='history'){ renderRounds(); }
+  });
+});
+
+/* ---------- PWA registration & prompt ---------- */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installHint').style.display = 'flex';
+});
+document.getElementById('installBtn').onclick = async () => {
+  if (!deferredPrompt) return alert('If you do not see the install prompt, add to Home Screen from your browser menu.');
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installHint').style.display = 'none';
+};
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+  });
+});
+
+/* ---------- Utilities ---------- */
+const LS = { players:'g9_players_v1', courses:'g9_courses_v1', rounds:'g9_rounds_v1' };
+const el = id => document.getElementById(id);
+function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)); }
+function load(key, fallback){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback }catch{ return fallback } }
+function save(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch{} }
+function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+function nextSunday() { const now = new Date(); const day = now.getDay(); const diff = (7 - day) % 7; const d = new Date(now); d.setDate(now.getDate() + diff); d.setHours(9,0,0,0); return d; }
+function toLocalInput(dt){ const pad = n => String(n).padStart(2,'0'); return dt.getFullYear()+"-"+pad(dt.getMonth()+1)+"-"+pad(dt.getDate())+"T"+pad(dt.getHours())+":"+pad(dt.getMinutes()); }
+function download(filename, text, mime="text/plain"){ const blob = new Blob([text], {type:mime+";charset=utf-8"}); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); }
+
+/* ---------- Data ---------- */
+let players = load(LS.players, []);
+let courses = load(LS.courses, []);
+let rounds  = load(LS.rounds, []);
+if(players.length===0){ players=[{id:uid(),name:'Osiel'},{id:uid(),name:'Guest 1'},{id:uid(),name:'Guest 2'}]; }
+if(courses.length===0){ const holes = Array.from({length:9},(_,i)=>({number:i+1,name:`Hole ${i+1}`})); courses=[{id:uid(),name:'Sunday Sandlot',holes}]; }
+let activeCourseId = courses[0].id;
+let selectedPlayerIds = players.slice(0,4).map(p=>p.id);
+let scores = {}; selectedPlayerIds.forEach(pid => scores[pid] = Array(9).fill(0));
+let dateISO = new Date().toISOString();
+
+/* ---------- DOM ---------- */
+const courseSelect = el('courseSelect');
+const dateInput   = el('dateInput');
+const playersChips = el('playersChips');
+const vHead = el('vHead');
+const vBody = el('vBody');
+const playersList = el('playersList');
+const newPlayerName = el('newPlayerName');
+const addPlayerBtn = el('addPlayerBtn');
+const courseName = el('courseName');
+const newCourseBtn = el('newCourseBtn');
+const delCourseBtn = el('delCourseBtn');
+const holesGrid = el('holesGrid');
+const roundsList = el('roundsList');
+el('btnNew').onclick = startNewRound;
+el('btnSave').onclick = saveRound;
+el('btnCSV').onclick = exportCSV;
+el('btnExport').onclick = exportJSON;
+el('btnImport').onclick = ()=> el('fileInput').click();
+el('fileInput')?.addEventListener('change', (e)=>{
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(String(reader.result));
+      if(data.players && data.courses && data.rounds){
+        players = data.players; courses = data.courses; rounds = data.rounds;
+        activeCourseId = courses[0]?.id || (courses[0] = {id:uid(), name:'Course', holes:[]}).id;
+        saveAll(); renderAll(); alert('Import successful');
+      } else alert('Invalid file format');
+    }catch(err){ alert('Import failed: '+(err && err.message ? err.message : err)); }
+  };
+  reader.readAsText(f);
+});
+
+/* ---------- Rendering ---------- */
+function renderCourseSelect(){
+  courseSelect.innerHTML = '';
+  courses.forEach(c=>{
+    const opt = document.createElement('option'); opt.value=c.id; opt.textContent=c.name;
+    if(c.id===activeCourseId) opt.selected = true; courseSelect.appendChild(opt);
+  });
+  courseSelect.onchange = () => { activeCourseId = courseSelect.value; renderSetupCourse(); renderVCard(); saveAll(); };
+}
+function renderPlayersChips(){
+  playersChips.innerHTML='';
+  players.forEach(p=>{
+    const wrapper=document.createElement('label'); wrapper.className='chip';
+    const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=selectedPlayerIds.includes(p.id);
+    chk.onchange=()=>{ if(chk.checked){ if(!selectedPlayerIds.includes(p.id)) selectedPlayerIds.push(p.id); if(!scores[p.id]) scores[p.id]=Array(9).fill(0); } else { selectedPlayerIds=selectedPlayerIds.filter(id=>id!==p.id); } renderVCard(); renderLiveLeaderboard(); saveAll(); };
+    const span=document.createElement('span'); span.textContent=p.name;
+    wrapper.append(chk,span); playersChips.appendChild(wrapper);
+  });
+}
+function makeBigCell(pid, idx, value){
+  const td=document.createElement('td');
+  const wrap=document.createElement('div'); wrap.className='bigcell';
+  const minus=document.createElement('button'); minus.className='bigbtn'; minus.textContent='−';
+  const input=document.createElement('input'); input.type='number'; input.className='scoreinput'; input.value=String(value||0); input.min='0'; input.max='20';
+  const plus=document.createElement('button'); plus.className='bigbtn'; plus.textContent='+';
+  minus.onclick=()=>{ const v=Math.max(0, (parseInt(input.value||'0',10)||0)-1); input.value=String(v); setScore(pid, idx, v); };
+  plus.onclick =()=>{ const v=Math.min(20,(parseInt(input.value||'0',10)||0)+1); input.value=String(v); setScore(pid, idx, v); };
+  input.oninput=()=>{ let v=parseInt(input.value||'0',10); if(isNaN(v)) v=0; v=Math.max(0, Math.min(20, v)); input.value=String(v); setScore(pid, idx, v); };
+  wrap.append(minus,input,plus); td.appendChild(wrap); return td;
+}
+function renderVCard(){
+  const course = courses.find(c=>c.id===activeCourseId); if(!course) return;
+  // Header: first sticky hole column then each player name
+  vHead.innerHTML='';
+  const trh=document.createElement('tr');
+  const thHole=document.createElement('th'); thHole.textContent='Hole'; thHole.className='namecell'; trh.appendChild(thHole);
+  selectedPlayerIds.forEach(pid=>{
+    const name = (players.find(p=>p.id===pid)||{name:pid}).name;
+    const th=document.createElement('th'); th.textContent = name; trh.appendChild(th);
+  });
+  const thTotal=document.createElement('th'); thTotal.textContent='Total'; trh.appendChild(thTotal);
+  vHead.appendChild(trh);
+
+  // Body: one row per hole, cells per player
+  vBody.innerHTML='';
+  for(let i=0;i<9;i++){
+    const tr=document.createElement('tr');
+    const th=document.createElement('th'); th.textContent = 'H'+(i+1); th.className='namecell'; tr.appendChild(th);
+    selectedPlayerIds.forEach(pid=>{
+      const arr=scores[pid] || Array(9).fill(0);
+      tr.appendChild(makeBigCell(pid, i, arr[i]||0));
+    });
+    // total per hole across players (optional blank); keep blank for clarity
+    const td=document.createElement('td'); td.textContent=''; tr.appendChild(td);
+    vBody.appendChild(tr);
+  }
+  // Totals row for each player
+  const trt=document.createElement('tr');
+  const tht=document.createElement('th'); tht.textContent='Total'; tht.className='namecell'; trt.appendChild(tht);
+  selectedPlayerIds.forEach(pid=>{
+    const arr=scores[pid] || Array(9).fill(0);
+    const total = arr.reduce((a,b)=>a+(b||0),0);
+    const td=document.createElement('td'); td.textContent=String(total); trt.appendChild(td);
+  });
+  const tdBlank=document.createElement('td'); tdBlank.textContent=''; trt.appendChild(tdBlank);
+  vBody.appendChild(trt);
+}
+function setScore(pid, idx, v){
+  if(!scores[pid]) scores[pid]=Array(9).fill(0);
+  scores[pid][idx]=v;
+  saveAll();
+  renderVCard();
+  renderLiveLeaderboard();
+}
+
+function renderSetupPlayers(){
+  playersList.innerHTML='';
+  players.forEach(p=>{
+    const item=document.createElement('div'); item.className='item';
+    const left=document.createElement('div'); left.style.flex='1';
+    const inp=document.createElement('input'); inp.value=p.name; inp.oninput=()=>{ p.name=inp.value; saveAll(); renderPlayersChips(); renderVCard(); renderRounds(); renderLiveLeaderboard(); renderSeasonLeaderboard(); };
+    left.appendChild(inp);
+    const actions=document.createElement('div');
+    const btnDel=document.createElement('button'); btnDel.className='warn'; btnDel.textContent='Delete';
+    btnDel.onclick=()=>{ players=players.filter(x=>x.id!==p.id); selectedPlayerIds=selectedPlayerIds.filter(id=>id!==p.id); delete scores[p.id]; saveAll(); renderAll(); };
+    actions.appendChild(btnDel);
+    item.append(left,actions);
+    playersList.appendChild(item);
+  });
+}
+function renderSetupCourse(){
+  const c=courses.find(c=>c.id===activeCourseId); if(!c) return;
+  courseName.value=c.name;
+  courseName.oninput=()=>{ c.name=courseName.value; saveAll(); renderCourseSelect(); renderRounds(); };
+  holesGrid.innerHTML='';
+  c.holes.forEach((h,idx)=>{
+    const box=document.createElement('div'); box.className='item';
+    const left=document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='8px'; left.style.flex='1';
+    const tag=document.createElement('div'); tag.textContent='H'+h.number; tag.className='pill'; tag.style.border='1px solid var(--border)'; tag.style.background='#f3f4f6';
+    const name=document.createElement('input'); name.placeholder=`Hole ${h.number}`; name.value=h.name||''; name.oninput=()=>{ h.name=name.value; saveAll(); };
+    left.append(tag,name); box.appendChild(left);
+    holesGrid.appendChild(box);
+  });
+}
+function renderRounds(){
+  roundsList.innerHTML='';
+  if(rounds.length===0){ roundsList.innerHTML='<div class="muted">No rounds saved yet.</div>'; return; }
+  rounds.forEach(r=>{
+    const course = courses.find(c=>c.id===r.courseId) || courses[0];
+    const date = new Date(r.date);
+    const item=document.createElement('div'); item.className='item';
+    const left=document.createElement('div'); left.innerHTML=`<div><strong>${course?course.name:"Course"}</strong> • ${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div><div class="muted" style="font-size:.85rem">Players: ${r.playerIds.map(pid => (players.find(p=>p.id===pid)||{name:pid}).name).join(", ")}</div>`;
+    const right=document.createElement('div'); right.style.display='flex'; right.style.gap='8px';
+    const btnCSV=document.createElement('button'); btnCSV.className='ghost'; btnCSV.textContent='CSV';
+    btnCSV.onclick=()=> download(`round_${date.toISOString().slice(0,10)}.csv`, toCSV(r, players), 'text/csv');
+    const btnDel=document.createElement('button'); btnDel.className='warn'; btnDel.textContent='Delete';
+    btnDel.onclick=()=>{ rounds=rounds.filter(x=>x.id!==r.id); saveAll(); renderRounds(); renderSeasonLeaderboard(); };
+    right.append(btnCSV, btnDel);
+    item.append(left,right);
+    roundsList.appendChild(item);
+  });
+}
+
+/* ---------- Leaderboards ---------- */
+function renderLiveLeaderboard(){
+  const live = document.getElementById('liveLeaders');
+  live.innerHTML='';
+  const rows = selectedPlayerIds.map(pid => {
+    const name = (players.find(p=>p.id===pid)||{name:pid}).name;
+    const arr = scores[pid] || Array(9).fill(0);
+    const total = arr.reduce((a,b)=>a+(b||0),0);
+    return {pid, name, total};
+  }).sort((a,b)=> a.total - b.total || a.name.localeCompare(b.name));
+  rows.forEach((r,i)=>{
+    const row = document.createElement('div'); row.className='leader-row';
+    const rank = document.createElement('div'); rank.className='leader-rank'; rank.textContent = String(i+1);
+    const name = document.createElement('div'); name.className='leader-name'; name.textContent = r.name;
+    const score = document.createElement('div'); score.className='leader-score'; score.textContent = r.total;
+    row.append(rank, name, score);
+    live.appendChild(row);
+  });
+}
+function renderSeasonLeaderboard(){
+  const season = document.getElementById('seasonLeaders');
+  season.innerHTML='';
+  const map = new Map(); // pid -> {name, rounds, sum}
+  rounds.forEach(r=>{
+    r.playerIds.forEach(pid => {
+      const arr = r.scores[pid] || Array(9).fill(0);
+      const total = arr.reduce((a,b)=>a+b,0);
+      const name = (players.find(p=>p.id===pid)||{name:pid}).name;
+      const cur = map.get(pid) || {name, rounds:0, sum:0};
+      cur.rounds += 1; cur.sum += total; map.set(pid, cur);
+    });
+  });
+  const rows = [...map.entries()].map(([pid, v]) => ({pid, ...v, avg: v.sum / v.rounds}))
+    .sort((a,b)=> a.avg - b.avg || b.rounds - a.rounds || a.name.localeCompare(b.name));
+  rows.forEach((r,i)=>{
+    const row = document.createElement('div'); row.className='leader-row';
+    const rank = document.createElement('div'); rank.className='leader-rank'; rank.textContent = String(i+1);
+    const name = document.createElement('div'); name.className='leader-name'; name.textContent = r.name + `  ·  ${r.rounds} rnds`;
+    const score = document.createElement('div'); score.className='leader-score'; score.textContent = r.avg.toFixed(1);
+    row.append(rank, name, score);
+    season.appendChild(row);
+  });
+}
+
+/* ---------- Actions ---------- */
+addPlayerBtn.onclick=()=>{ const name=newPlayerName.value.trim(); if(!name) return;
+  const p={id:uid(), name}; players.push(p); newPlayerName.value=''; saveAll(); renderSetupPlayers(); renderPlayersChips(); renderVCard(); renderLiveLeaderboard(); renderSeasonLeaderboard(); };
+newCourseBtn.onclick=()=>{ const name=prompt('Course name?','Sunday Sandlot'); if(!name) return;
+  const c={ id:uid(), name, holes:Array.from({length:9},(_,i)=>({number:i+1,name:`Hole ${i+1}`})) };
+  courses.push(c); activeCourseId=c.id; saveAll(); renderAll();
+};
+delCourseBtn.onclick=()=>{ if(courses.length<=1) return alert('Keep at least one course.');
+  if(!confirm('Delete current course?')) return;
+  courses=courses.filter(c=>c.id!==activeCourseId); activeCourseId=courses[0].id; saveAll(); renderAll();
+};
+function startNewRound(){ const d=nextSunday(); dateISO=d.toISOString();
+  selectedPlayerIds = players.slice(0, Math.min(players.length,4)).map(p=>p.id);
+  scores={}; selectedPlayerIds.forEach(pid => scores[pid]=Array(9).fill(0));
+  dateInput.value = toLocalInput(new Date(dateISO));
+  renderPlayersChips(); renderVCard(); renderLiveLeaderboard();
+}
+function saveRound(){ const r={ id:uid(), date:new Date(dateInput.value||new Date()).toISOString(), courseId:activeCourseId, playerIds:[...selectedPlayerIds], scores:{} };
+  selectedPlayerIds.forEach(pid => r.scores[pid] = (scores[pid]||Array(9).fill(0)).slice());
+  rounds.unshift(r); saveAll(); renderRounds(); renderSeasonLeaderboard(); alert('Round saved!');
+}
+function toCSV(round, players){
+  const header=['Hole', ...round.playerIds.map(pid => (players.find(p=>p.id===pid)||{name:pid}).name)];
+  const rows = Array.from({length:9}, (_,i)=>{
+    const row = ['H'+(i+1)];
+    round.playerIds.forEach(pid => row.push((round.scores[pid]||Array(9).fill(0))[i]||0));
+    return row;
+  });
+  const totals = ['Total', ...round.playerIds.map(pid => (round.scores[pid]||Array(9).fill(0)).reduce((a,b)=>a+b,0))];
+  const all = [header, ...rows, totals];
+  return all.map(r => r.map(v => String(v)).join(',')).join('\\n');
+}
+function exportCSV(){ const course=courses.find(c=>c.id===activeCourseId);
+  const tempRound={ id:'temp', date:new Date(dateInput.value||new Date()).toISOString(), courseId:activeCourseId, playerIds:selectedPlayerIds, scores };
+  const courseName=(course?.name||'Course').replace(/\\s+/g,'_');
+  download(`${courseName}_${tempRound.date.slice(0,10)}.csv`, toCSV(tempRound, players), 'text/csv');
+}
+function exportJSON(){ download('golf9_data.json', JSON.stringify({players,courses,rounds}, null, 2), 'application/json'); }
+function saveAll(){ save(LS.players,players); save(LS.courses,courses); save(LS.rounds,rounds); }
+
+/* ---------- Init ---------- */
+function renderAll(){ renderCourseSelect(); renderPlayersChips(); renderSetupPlayers(); renderSetupCourse(); renderVCard(); renderLiveLeaderboard(); renderSeasonLeaderboard(); renderRounds(); }
+function init(){ renderAll(); const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalInput(d); }
+init();
+</script>
+</body>
+</html>
