@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>9‑Hole Golf Scorekeeper</title>
+  <title>Potrero Golf Course — 9‑Hole Scorekeeper</title>
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -35,7 +35,7 @@
     label.small{font-size:.75rem;color:var(--muted);display:block;margin-bottom:4px}
     input,select,button{height:44px;border-radius:12px;border:1px solid var(--border);padding:0 12px;font-size:16px;background:#fff}
     button{background:var(--ink);color:#fff;border-color:var(--ink);cursor:pointer}
-    button.ghost{background:#fff;color:#111827;border-color:var(--border)}
+    button.ghost{background:#fff;color:#111827;border-color:#efefef}
     button.warn{background:#ef4444;border-color:#ef4444}
     .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;font-size:16px}
     .chip input{width:18px;height:18px}
@@ -66,11 +66,12 @@
     .gridnums button{height:54px;border-radius:12px;border:1px solid var(--border);background:#f8fafc;font-size:18px;color:#111}
     .sheet-h{display:flex;justify-content:space-between;align-items:center}
     .sheet-h .title{font-weight:700}
+    .mode-wrap{display:flex;align-items:center;gap:8px}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>9‑Hole Golf Scorekeeper</h1>
+    <h1>Potrero Golf Course — 9‑Hole Scorekeeper</h1>
 
     <div class="tabs">
       <div class="tab active" data-tab="score">Scorecard</div>
@@ -91,6 +92,13 @@
               <div class="muted">Rows = Hole 1…9, Columns = Players (tap a cell → keypad 1–15).</div>
             </div>
             <div class="row">
+              <div class="mode-wrap">
+                <label class="small">Mode</label>
+                <select id="scoreMode">
+                  <option value="individual">Individuals</option>
+                  <option value="teams">Teams</option>
+                </select>
+              </div>
               <button id="btnNew">New Round</button>
               <button id="btnSave">Save</button>
               <button class="ghost" id="btnCSV">CSV</button>
@@ -257,8 +265,9 @@ document.querySelectorAll('.tab').forEach(t => {
   });
 });
 
-/* ---------- PWA registration & prompt ---------- */
+/* ---------- PWA registration + Auto-refresh ---------- */
 let deferredPrompt = null;
+let reloading = false;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
@@ -272,13 +281,35 @@ document.getElementById('installBtn').onclick = async () => {
   document.getElementById('installHint').style.display = 'none';
 };
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+  window.addEventListener('load', async () => {
+    try{
+      const reg = await navigator.serviceWorker.register('./service-worker.js');
+      // Trigger update check on load
+      reg.update();
+      // If a new service worker is installed, reload once
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloading) return;
+        reloading = true;
+        window.location.reload();
+      });
+      // Also listen for waiting worker and skip waiting
+      if (reg.waiting) { reg.waiting.postMessage({type:'SKIP_WAITING'}); }
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            // Ask it to activate now (will fire controllerchange → reload)
+            reg.waiting && reg.waiting.postMessage({type:'SKIP_WAITING'});
+          }
+        });
+      });
+    }catch(e){ console.error(e); }
   });
 }
 
 /* ---------- Utilities ---------- */
-const LS = { players:'g9_players_v2', courses:'g9_courses_v2', rounds:'g9_rounds_v2', teams:'g9_teams_v1' };
+const LS = { players:'g9_players_v3', courses:'g9_courses_v3', rounds:'g9_rounds_v3', teams:'g9_teams_v2', mode:'g9_mode_v1' };
 const el = id => document.getElementById(id);
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)); }
 function load(key, fallback){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback }catch{ return fallback } }
@@ -292,9 +323,17 @@ let players = load(LS.players, []);
 let courses = load(LS.courses, []);
 let rounds  = load(LS.rounds, []);
 let teams   = load(LS.teams, {t1:{name:'Team 1', members:[]}, t2:{name:'Team 2', members:[]}});
+let mode    = load(LS.mode, 'individual');
 
-if(players.length===0){ players=[{id:uid(),name:'Osiel'},{id:uid(),name:'Guest 1'},{id:uid(),name:'Guest 2'}]; }
-if(courses.length===0){ const holes = Array.from({length:9},(_,i)=>({number:i+1,name:`Hole ${i+1}`})); courses=[{id:uid(),name:'Sunday Sandlot',holes}]; }
+if(players.length===0){ players=[
+  {id:uid(),name:'Eric'},
+  {id:uid(),name:'Luz'},
+  {id:uid(),name:'Osiel'},
+  {id:uid(),name:'Francisco'},
+  {id:uid(),name:'Javier'},
+  {id:uid(),name:'Rafael'}
+]; }
+if(courses.length===0){ const holes = Array.from({length:9},(_,i)=>({number:i+1,name:`Hole ${i+1}`})); courses=[{id:uid(),name:'Potrero Golf Course',holes}]; }
 let activeCourseId = courses[0].id;
 let selectedPlayerIds = players.slice(0,4).map(p=>p.id);
 let scores = {}; selectedPlayerIds.forEach(pid => scores[pid] = Array(9).fill(0));
@@ -316,6 +355,7 @@ const delCourseBtn = el('delCourseBtn');
 const holesGrid = el('holesGrid');
 const roundsList = el('roundsList');
 const leaderMode = el('leaderMode');
+const scoreMode = el('scoreMode');
 const overlay = el('overlay');
 const keypad = el('keypad');
 const directInput = el('directInput');
@@ -486,12 +526,14 @@ function renderRounds(){
 }
 
 /* ---------- Leaderboards ---------- */
-leaderMode.onchange = ()=>{ renderLiveLeaderboard(); renderSeasonLeaderboard(); };
+leaderMode.onchange = ()=>{ save(LS.mode, leaderMode.value); renderLiveLeaderboard(); renderSeasonLeaderboard(); scoreMode.value = leaderMode.value; };
+scoreMode.onchange = ()=>{ save(LS.mode, scoreMode.value); leaderMode.value = scoreMode.value; renderLiveLeaderboard(); renderSeasonLeaderboard(); };
 function renderLiveLeaderboard(){
-  const mode = leaderMode.value;
+  const modeNow = load(LS.mode, 'individual');
+  leaderMode.value = modeNow; scoreMode.value = modeNow;
   const live = document.getElementById('liveLeaders');
   live.innerHTML='';
-  if(mode==='individual'){
+  if(modeNow==='individual'){
     const rows = selectedPlayerIds.map(pid => {
       const name = (players.find(p=>p.id===pid)||{name:pid}).name;
       const arr = scores[pid] || Array(9).fill(0);
@@ -507,7 +549,6 @@ function renderLiveLeaderboard(){
       live.appendChild(row);
     });
   } else {
-    // Teams: sum of selected players that belong to each team
     const trows = [];
     const tdefs = [{id:'t1', name:teams.t1.name, members:teams.t1.members}, {id:'t2', name:teams.t2.name, members:teams.t2.members}];
     tdefs.forEach(t=>{
@@ -529,10 +570,11 @@ function renderLiveLeaderboard(){
   }
 }
 function renderSeasonLeaderboard(){
-  const mode = leaderMode.value;
+  const modeNow = load(LS.mode, 'individual');
+  leaderMode.value = modeNow; scoreMode.value = modeNow;
   const season = document.getElementById('seasonLeaders');
   season.innerHTML='';
-  if(mode==='individual'){
+  if(modeNow==='individual'){
     const map = new Map(); // pid -> {name, rounds, sum}
     rounds.forEach(r=>{
       r.playerIds.forEach(pid => {
@@ -554,7 +596,6 @@ function renderSeasonLeaderboard(){
       season.appendChild(row);
     });
   } else {
-    // Teams: across saved rounds, build by team assignments at the time of viewing (simple approach)
     const tdefs = [{id:'t1', name:teams.t1.name, members:teams.t1.members}, {id:'t2', name:teams.t2.name, members:teams.t2.members}];
     const map = new Map(); // tid -> {name, rounds, sum}
     rounds.forEach(r=>{
@@ -584,7 +625,7 @@ function renderSeasonLeaderboard(){
 /* ---------- Actions ---------- */
 addPlayerBtn.onclick=()=>{ const name=newPlayerName.value.trim(); if(!name) return;
   const p={id:uid(), name}; players.push(p); newPlayerName.value=''; saveAll(); renderSetupPlayers(); renderPlayersChips(); renderVCard(); renderLiveLeaderboard(); renderSeasonLeaderboard(); renderTeamsTab(); };
-newCourseBtn.onclick=()=>{ const name=prompt('Course name?','Sunday Sandlot'); if(!name) return;
+newCourseBtn.onclick=()=>{ const name=prompt('Course name?','Potrero Golf Course'); if(!name) return;
   const c={ id:uid(), name, holes:Array.from({length:9},(_,i)=>({number:i+1,name:`Hole ${i+1}`})) };
   courses.push(c); activeCourseId=c.id; saveAll(); renderAll();
 };
@@ -617,13 +658,12 @@ function exportCSV(){ const course=courses.find(c=>c.id===activeCourseId);
   const courseName=(course?.name||'Course').replace(/\\s+/g,'_');
   download(`${courseName}_${tempRound.date.slice(0,10)}.csv`, toCSV(tempRound, players), 'text/csv');
 }
-function exportJSON(){ download('golf9_data.json', JSON.stringify({players,courses,rounds,teams}, null, 2), 'application/json'); }
-function saveAll(){ save(LS.players,players); save(LS.courses,courses); save(LS.rounds,rounds); save(LS.teams,teams); }
+function exportJSON(){ download('golf9_data.json', JSON.stringify({players,courses,rounds,teams,mode:load(LS.mode, 'individual')}, null, 2), 'application/json'); }
+function saveAll(){ save(LS.players,players); save(LS.courses,courses); save(LS.rounds,rounds); save(LS.teams,teams); save(LS.mode, scoreMode.value); }
 
 /* ---------- Init ---------- */
-function renderAll(){ renderCourseSelect(); renderPlayersChips(); renderSetupPlayers(); renderVCard(); renderRounds(); renderTeamsTab(); renderLiveLeaderboard(); renderSeasonLeaderboard(); }
+function renderAll(){ renderCourseSelect(); renderPlayersChips(); renderSetupPlayers(); renderVCard(); renderRounds(); renderTeamsTab(); renderLiveLeaderboard(); renderSeasonLeaderboard(); scoreMode.value = mode; leaderMode.value = mode; }
 function init(){ renderAll(); const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalInput(d); 
-  // build keypad buttons on load
   keypad.innerHTML=''; for(let n=1;n<=15;n++){ const b=document.createElement('button'); b.textContent=String(n); b.onclick=()=>{ if(keypadTarget) setScore(keypadTarget.pid, keypadTarget.idx, n); overlay.style.display='none'; }; keypad.appendChild(b); }
 }
 init();

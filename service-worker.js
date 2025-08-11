@@ -1,5 +1,5 @@
-// Cache-first service worker (v3 for keypad/teams build)
-const CACHE_NAME = 'golf9-vertical-v3';
+// Service worker with auto-refresh support (responds to SKIP_WAITING)
+const CACHE_NAME = 'golf9-auto-v1';
 const ASSETS = [
   './',
   './index.html',
@@ -24,4 +24,9 @@ self.addEventListener('fetch', (event) => {
       const copy = resp.clone(); caches.open(CACHE_NAME).then(cache => cache.put(req, copy)); return resp;
     }).catch(() => caches.match('./index.html')))
   );
+});
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
