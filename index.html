@@ -62,11 +62,15 @@
     /* keypad overlay */
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:end;justify-content:center}
     .sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:14px 14px 20px 14px;box-shadow:0 -10px 30px rgba(0,0,0,.2)}
-    .gridnums{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px}
+    .gridnums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
     .gridnums button{height:54px;border-radius:12px;border:1px solid var(--border);background:#f8fafc;font-size:18px;color:#111}
     .sheet-h{display:flex;justify-content:space-between;align-items:center}
     .sheet-h .title{font-weight:700}
     .mode-wrap{display:flex;align-items:center;gap:8px}
+    .roster{font-size:.9rem;color:#111}
+    .roster h4{margin:.2rem 0 .4rem 0;font-size:.95rem;color:#374151}
+    .roster .team{border:1px solid var(--border);border-radius:12px;padding:8px;margin-bottom:8px;background:#fff}
+    .roster ul{margin:6px 0 0 1rem;padding:0}
   </style>
 </head>
 <body>
@@ -89,7 +93,7 @@
           <div class="card-h">
             <div>
               <h2>Scorecard</h2>
-              <div class="muted">Rows = Hole 1…9, Columns = Players (tap a cell → keypad 1–15).</div>
+              <div class="muted">Individuals: players across top. Teams: only Team 1/2/3 columns. Tap a cell → keypad 1–8; use More… for 9–15.</div>
             </div>
             <div class="row">
               <div class="mode-wrap">
@@ -116,7 +120,7 @@
               </div>
             </div>
 
-            <div class="section">
+            <div class="section" id="playersSection">
               <label class="small">Players</label>
               <div id="playersChips" class="row"></div>
             </div>
@@ -131,14 +135,21 @@
           </div>
         </div>
 
-        <!-- Right: Setup -->
+        <!-- Right: Side panel (Players/Teams management + Roster in Team mode) -->
         <div class="card">
-          <div class="card-h"><h2>Players</h2></div>
+          <div class="card-h"><h2 id="sideTitle">Players</h2></div>
           <div class="card-c">
-            <div class="list" id="playersList"></div>
-            <div class="row" style="margin-top:8px">
-              <input id="newPlayerName" class="flex" placeholder="Add player name" />
-              <button id="addPlayerBtn">Add</button>
+            <div id="playersManager">
+              <div class="list" id="playersList"></div>
+              <div class="row" style="margin-top:8px">
+                <input id="newPlayerName" class="flex" placeholder="Add player name" />
+                <button id="addPlayerBtn">Add</button>
+              </div>
+            </div>
+            <div id="rosterBox" class="roster" style="display:none;">
+              <h4>Team rosters</h4>
+              <div id="rosterTeams"></div>
+              <div class="muted" style="margin-top:6px">Edit teams in the <strong>Teams</strong> tab.</div>
             </div>
           </div>
         </div>
@@ -157,7 +168,7 @@
           </div>
         </div>
         <div class="card-c">
-          <div class="subtitle">Live for current round. Switch to Teams for team totals.</div>
+          <div class="subtitle">Live for current round; matches the Mode.</div>
           <div id="liveLeaders" class="list" style="margin-top:10px"></div>
         </div>
       </div>
@@ -183,6 +194,10 @@
             <div class="flex">
               <label class="small">Team 2 name</label>
               <input id="team2Name" placeholder="Team 2" />
+            </div>
+            <div class="flex">
+              <label class="small">Team 3 name</label>
+              <input id="team3Name" placeholder="Team 3" />
             </div>
           </div>
           <div class="list" id="teamAssignList" style="margin-top:10px"></div>
@@ -239,7 +254,6 @@
     <div class="sheet">
       <div class="sheet-h">
         <div class="title">Set strokes</div>
-        <button id="closeKeypad" class="ghost">Close</button>
       </div>
       <div class="gridnums" id="keypad"></div>
       <div class="row" style="margin-top:10px;justify-content:flex-end">
@@ -287,22 +301,16 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try{
       const reg = await navigator.serviceWorker.register('./service-worker.js');
-      // Trigger update check on load
       reg.update();
-      // If a new service worker is installed, reload once
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (reloading) return;
-        reloading = true;
-        window.location.reload();
+        if (reloading) return; reloading = true; window.location.reload();
       });
-      // Also listen for waiting worker and skip waiting
       if (reg.waiting) { reg.waiting.postMessage({type:'SKIP_WAITING'}); }
       reg.addEventListener('updatefound', () => {
         const newSW = reg.installing;
         if (!newSW) return;
         newSW.addEventListener('statechange', () => {
           if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-            // Ask it to activate now (will fire controllerchange → reload)
             reg.waiting && reg.waiting.postMessage({type:'SKIP_WAITING'});
           }
         });
@@ -312,7 +320,7 @@ if ('serviceWorker' in navigator) {
 }
 
 /* ---------- Utilities ---------- */
-const LS = { players:'g9_players_v3', courses:'g9_courses_v3', rounds:'g9_rounds_v3', teams:'g9_teams_v2', mode:'g9_mode_v1' };
+const LS = { players:'g9_players_v4', courses:'g9_courses_v4', rounds:'g9_rounds_v4', teams:'g9_teams_v3', mode:'g9_mode_v2', teamScores:'g9_team_scores_tmp' };
 const el = id => document.getElementById(id);
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)); }
 function load(key, fallback){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback }catch{ return fallback } }
@@ -325,7 +333,7 @@ function download(filename, text, mime="text/plain"){ const blob = new Blob([tex
 let players = load(LS.players, []);
 let courses = load(LS.courses, []);
 let rounds  = load(LS.rounds, []);
-let teams   = load(LS.teams, {t1:{name:'Team 1', members:[]}, t2:{name:'Team 2', members:[]}});
+let teams   = load(LS.teams, {t1:{name:'Team 1', members:[]}, t2:{name:'Team 2', members:[]}, t3:{name:'Team 3', members:[]}});
 let mode    = load(LS.mode, 'individual');
 
 if(players.length===0){ players=[
@@ -340,12 +348,14 @@ if(courses.length===0){ const holes = Array.from({length:9},(_,i)=>({number:i+1,
 let activeCourseId = courses[0].id;
 let selectedPlayerIds = players.slice(0,4).map(p=>p.id);
 let scores = {}; selectedPlayerIds.forEach(pid => scores[pid] = Array(9).fill(0));
+let teamScores = load(LS.teamScores, {t1:Array(9).fill(0), t2:Array(9).fill(0), t3:Array(9).fill(0)});
 let dateISO = new Date().toISOString();
-let keypadTarget = null; // {pid, idx}
+let keypadTarget = null; // {type:'player'|'team', key:pid|tid, idx}
 
 /* ---------- DOM ---------- */
 const courseSelect = el('courseSelect');
 const dateInput   = el('dateInput');
+const playersSection = el('playersSection');
 const playersChips = el('playersChips');
 const vHead = el('vHead');
 const vBody = el('vBody');
@@ -361,12 +371,25 @@ const leaderMode = el('leaderMode');
 const scoreMode = el('scoreMode');
 const overlay = el('overlay');
 const keypad = el('keypad');
-const directInput = el('directInput');
 const moreBtn = el('moreBtn');
 const manualRow = el('manualRow');
-el('closeKeypad').onclick = ()=> overlay.style.display='none';
-el('applyDirect').onclick = ()=>{ const v = Math.max(0, Math.min(20, parseInt(directInput.value||'0',10)||0)); if(keypadTarget){ setScore(keypadTarget.pid, keypadTarget.idx, v); } overlay.style.display='none'; manualRow.style.display='none'; };
+const directInput = el('directInput');
+const sideTitle = el('sideTitle');
+const rosterBox = el('rosterBox');
+const rosterTeams = el('rosterTeams');
+
+/* ---------- Keypad ---------- */
+function buildKeypad(){
+  keypad.innerHTML='';
+  for(let n=1;n<=8;n++){
+    const b=document.createElement('button'); b.textContent=String(n);
+    b.onclick=()=>{ if(!keypadTarget) return; setScore(keypadTarget.type, keypadTarget.key, keypadTarget.idx, n); overlay.style.display='none'; manualRow.style.display='none'; };
+    keypad.appendChild(b);
+  }
+}
+buildKeypad();
 moreBtn.onclick = ()=>{ manualRow.style.display = 'flex'; setTimeout(()=> directInput.focus(), 10); };
+el('applyDirect').onclick = ()=>{ const v = Math.max(0, Math.min(20, parseInt(directInput.value||'0',10)||0)); if(keypadTarget){ setScore(keypadTarget.type, keypadTarget.key, keypadTarget.idx, v); } overlay.style.display='none'; manualRow.style.display='none'; };
 
 /* ---------- Rendering ---------- */
 function renderCourseSelect(){
@@ -387,79 +410,149 @@ function renderPlayersChips(){
     wrapper.append(chk,span); playersChips.appendChild(wrapper);
   });
 }
-function openKeypad(pid, idx, current){
-  keypadTarget = {pid, idx};
-  keypad.innerHTML='';
-  for(let n=1;n<=8;n++){
-    const b=document.createElement('button'); b.textContent=String(n);
-    b.onclick=()=>{ setScore(pid, idx, n); overlay.style.display='none'; };
-    keypad.appendChild(b);
-  }
+function openKeypad(targetType, key, idx, current){
+  keypadTarget = {type:targetType, key, idx};
   directInput.value = current || 0;
+  manualRow.style.display='none';
   overlay.style.display='flex';
 }
-function makeCell(pid, idx, value){
+function makeCell_input(openFn, value){
   const td=document.createElement('td');
   const input=document.createElement('input'); input.type='number'; input.className='scoreinput'; input.value=String(value||0); input.min='0'; input.max='20';
-  input.onfocus=()=>{ openKeypad(pid, idx, parseInt(input.value||'0',10)||0); };
-  input.onclick=()=>{ openKeypad(pid, idx, parseInt(input.value||'0',10)||0); };
-  input.oninput=()=>{ let v=parseInt(input.value||'0',10); if(isNaN(v)) v=0; v=Math.max(0, Math.min(20, v)); input.value=String(v); setScore(pid, idx, v, false); };
+  input.onfocus=()=> openFn();
+  input.onclick=()=> openFn();
+  input.oninput=()=>{ let v=parseInt(input.value||'0',10); if(isNaN(v)) v=0; v=Math.max(0, Math.min(20, v)); input.value=String(v); /* don't set until Apply or keypad */ };
   td.appendChild(input); return td;
+}
+function renderRoster(){
+  rosterTeams.innerHTML='';
+  const defs=[{id:'t1',...teams.t1},{id:'t2',...teams.t2},{id:'t3',...teams.t3}];
+  defs.forEach(t=>{
+    if(!t.name) return;
+    const box=document.createElement('div'); box.className='team';
+    const title=document.createElement('div'); title.innerHTML = `<strong>${t.name}</strong>`;
+    const ul=document.createElement('ul');
+    t.members.forEach(pid => {
+      const p = players.find(x=>x.id===pid);
+      const li=document.createElement('li'); li.textContent = p ? p.name : pid; ul.appendChild(li);
+    });
+    box.append(title,ul);
+    rosterTeams.appendChild(box);
+  });
 }
 function renderVCard(){
   const course = courses.find(c=>c.id===activeCourseId); if(!course) return;
-  // Header
-  vHead.innerHTML='';
+  const modeNow = load(LS.mode, 'individual');
+  vHead.innerHTML=''; vBody.innerHTML='';
+
+  // Toggle players section + side roster
+  if(modeNow==='individual'){
+    playersSection.style.display='block';
+    sideTitle.textContent='Players';
+    rosterBox.style.display='none';
+  } else {
+    playersSection.style.display='none';
+    sideTitle.textContent='Teams & Roster';
+    rosterBox.style.display='block';
+    renderRoster();
+  }
+
+  // Header row
   const trh=document.createElement('tr');
   const thHole=document.createElement('th'); thHole.textContent='Hole'; thHole.className='namecell'; trh.appendChild(thHole);
-  selectedPlayerIds.forEach(pid=>{
-    const name = (players.find(p=>p.id===pid)||{name:pid}).name;
-    const th=document.createElement('th'); th.textContent = name; trh.appendChild(th);
-  });
+
+  if(modeNow==='individual'){
+    selectedPlayerIds.forEach(pid=>{
+      const name = (players.find(p=>p.id===pid)||{name:pid}).name;
+      const th=document.createElement('th'); th.textContent = name; trh.appendChild(th);
+    });
+  } else {
+    const tdefs = [{id:'t1',name:teams.t1.name,members:teams.t1.members},
+                   {id:'t2',name:teams.t2.name,members:teams.t2.members},
+                   {id:'t3',name:teams.t3.name,members:teams.t3.members}];
+    tdefs.forEach(t=>{
+      if(t.members.length>0){ const th=document.createElement('th'); th.textContent=t.name||t.id.toUpperCase(); trh.appendChild(th); }
+    });
+  }
   const thTotal=document.createElement('th'); thTotal.textContent='Total'; trh.appendChild(thTotal);
   vHead.appendChild(trh);
 
-  // Body: holes
-  vBody.innerHTML='';
+  // Body rows
   for(let i=0;i<9;i++){
     const tr=document.createElement('tr');
     const th=document.createElement('th'); th.textContent = 'H'+(i+1); th.className='namecell'; tr.appendChild(th);
-    selectedPlayerIds.forEach(pid=>{
-      const arr=scores[pid] || Array(9).fill(0);
-      tr.appendChild(makeCell(pid, i, arr[i]||0));
-    });
+
+    if(modeNow==='individual'){
+      selectedPlayerIds.forEach(pid=>{
+        const arr=scores[pid] || Array(9).fill(0);
+        tr.appendChild(makeCell_input(()=> openKeypad('player', pid, i, arr[i]||0), arr[i]||0));
+      });
+    } else {
+      const tdefs = [{id:'t1',name:teams.t1.name,members:teams.t1.members},
+                     {id:'t2',name:teams.t2.name,members:teams.t2.members},
+                     {id:'t3',name:teams.t3.name,members:teams.t3.members}];
+      tdefs.forEach(t=>{
+        if(t.members.length>0){
+          const arr = teamScores[t.id] || Array(9).fill(0);
+          tr.appendChild(makeCell_input(()=> openKeypad('team', t.id, i, arr[i]||0), arr[i]||0));
+        }
+      });
+    }
+
     const td=document.createElement('td'); td.textContent=''; tr.appendChild(td);
     vBody.appendChild(tr);
   }
-  // Totals
+
+  // Totals row
   const trt=document.createElement('tr');
   const tht=document.createElement('th'); tht.textContent='Total'; tht.className='namecell'; trt.appendChild(tht);
-  selectedPlayerIds.forEach(pid=>{
-    const arr=scores[pid] || Array(9).fill(0);
-    const total = arr.reduce((a,b)=>a+(b||0),0);
-    const td=document.createElement('td'); td.textContent=String(total); trt.appendChild(td);
-  });
+
+  if(modeNow==='individual'){
+    selectedPlayerIds.forEach(pid=>{
+      const arr=scores[pid] || Array(9).fill(0);
+      const total = arr.reduce((a,b)=>a+(b||0),0);
+      const td=document.createElement('td'); td.textContent=String(total); trt.appendChild(td);
+    });
+  } else {
+    const tdefs = [{id:'t1',name:teams.t1.name,members:teams.t1.members},
+                   {id:'t2',name:teams.t2.name,members:teams.t2.members},
+                   {id:'t3',name:teams.t3.name,members:teams.t3.members}];
+    tdefs.forEach(t=>{
+      if(t.members.length>0){
+        const arr=teamScores[t.id] || Array(9).fill(0);
+        const total=arr.reduce((a,b)=>a+(b||0),0);
+        const td=document.createElement('td'); td.textContent=String(total); trt.appendChild(td);
+      }
+    });
+  }
   const tdBlank=document.createElement('td'); tdBlank.textContent=''; trt.appendChild(tdBlank);
   vBody.appendChild(trt);
 }
-function setScore(pid, idx, v, rerender=true){
-  if(!scores[pid]) scores[pid]=Array(9).fill(0);
-  scores[pid][idx]=v;
+
+function setScore(targetType, key, idx, v){
+  if(targetType==='player'){
+    if(!scores[key]) scores[key]=Array(9).fill(0);
+    scores[key][idx]=v;
+  } else {
+    if(!teamScores[key]) teamScores[key]=Array(9).fill(0);
+    teamScores[key][idx]=v;
+  }
   saveAll();
-  if(rerender){ renderVCard(); }
+  renderVCard();
   renderLiveLeaderboard();
 }
 
+/* ---------- Players / Courses ---------- */
 function renderSetupPlayers(){
   playersList.innerHTML='';
   players.forEach(p=>{
     const item=document.createElement('div'); item.className='item';
     const left=document.createElement('div'); left.style.flex='1';
-    const inp=document.createElement('input'); inp.value=p.name; inp.oninput=()=>{ p.name=inp.value; saveAll(); renderPlayersChips(); renderVCard(); renderRounds(); renderLiveLeaderboard(); renderSeasonLeaderboard(); renderTeamsTab(); };
+    const inp=document.createElement('input'); inp.value=p.name; inp.oninput=()=>{ p.name=inp.value; saveAll(); renderPlayersChips(); renderVCard(); renderRounds(); renderLiveLeaderboard(); renderSeasonLeaderboard(); renderTeamsTab(); renderRoster(); };
     left.appendChild(inp);
     const actions=document.createElement('div');
     const btnDel=document.createElement('button'); btnDel.className='warn'; btnDel.textContent='Delete';
-    btnDel.onclick=()=>{ players=players.filter(x=>x.id!==p.id); selectedPlayerIds=selectedPlayerIds.filter(id=>id!==p.id); delete scores[p.id]; teams.t1.members = teams.t1.members.filter(id=>id!==p.id); teams.t2.members = teams.t2.members.filter(id=>id!==p.id); saveAll(); renderAll(); };
+    btnDel.onclick=()=>{ players=players.filter(x=>x.id!==p.id); selectedPlayerIds=selectedPlayerIds.filter(id=>id!==p.id); delete scores[p.id]; ['t1','t2','t3'].forEach(tid => teams[tid].members = teams[tid].members.filter(id=>id!==p.id)); saveAll(); renderAll(); };
     actions.appendChild(btnDel);
     item.append(left,actions);
     playersList.appendChild(item);
@@ -484,8 +577,10 @@ function renderSetupCourse(){
 function renderTeamsTab(){
   el('team1Name').value = teams.t1.name || 'Team 1';
   el('team2Name').value = teams.t2.name || 'Team 2';
-  el('team1Name').oninput = ()=>{ teams.t1.name = el('team1Name').value; saveAll(); renderLiveLeaderboard(); };
-  el('team2Name').oninput = ()=>{ teams.t2.name = el('team2Name').value; saveAll(); renderLiveLeaderboard(); };
+  el('team3Name').value = teams.t3.name || 'Team 3';
+  el('team1Name').oninput = ()=>{ teams.t1.name = el('team1Name').value; saveAll(); renderLiveLeaderboard(); renderRoster(); renderVCard(); };
+  el('team2Name').oninput = ()=>{ teams.t2.name = el('team2Name').value; saveAll(); renderLiveLeaderboard(); renderRoster(); renderVCard(); };
+  el('team3Name').oninput = ()=>{ teams.t3.name = el('team3Name').value; saveAll(); renderLiveLeaderboard(); renderRoster(); renderVCard(); };
   const list = el('teamAssignList');
   list.innerHTML='';
   players.forEach(p=>{
@@ -495,16 +590,16 @@ function renderTeamsTab(){
     const opt0 = new Option('No team','none');
     const opt1 = new Option(teams.t1.name || 'Team 1','t1');
     const opt2 = new Option(teams.t2.name || 'Team 2','t2');
-    select.append(opt0,opt1,opt2);
+    const opt3 = new Option(teams.t3.name || 'Team 3','t3');
+    select.append(opt0,opt1,opt2,opt3);
     if(teams.t1.members.includes(p.id)) select.value='t1';
     else if(teams.t2.members.includes(p.id)) select.value='t2';
+    else if(teams.t3.members.includes(p.id)) select.value='t3';
     else select.value='none';
     select.onchange=()=>{
-      teams.t1.members = teams.t1.members.filter(id=>id!==p.id);
-      teams.t2.members = teams.t2.members.filter(id=>id!==p.id);
-      if(select.value==='t1') teams.t1.members.push(p.id);
-      if(select.value==='t2') teams.t2.members.push(p.id);
-      saveAll(); renderLiveLeaderboard();
+      ['t1','t2','t3'].forEach(tid => teams[tid].members = teams[tid].members.filter(id=>id!==p.id));
+      if(select.value!=='none') teams[select.value].members.push(p.id);
+      saveAll(); renderLiveLeaderboard(); renderRoster(); renderVCard();
     };
     item.append(left,select);
     list.appendChild(item);
@@ -532,8 +627,8 @@ function renderRounds(){
 }
 
 /* ---------- Leaderboards ---------- */
-leaderMode.onchange = ()=>{ save(LS.mode, leaderMode.value); renderLiveLeaderboard(); renderSeasonLeaderboard(); scoreMode.value = leaderMode.value; };
-scoreMode.onchange = ()=>{ save(LS.mode, scoreMode.value); leaderMode.value = scoreMode.value; renderLiveLeaderboard(); renderSeasonLeaderboard(); };
+leaderMode.onchange = ()=>{ save(LS.mode, leaderMode.value); renderLiveLeaderboard(); renderSeasonLeaderboard(); scoreMode.value = leaderMode.value; renderVCard(); };
+scoreMode.onchange = ()=>{ save(LS.mode, scoreMode.value); leaderMode.value = scoreMode.value; renderLiveLeaderboard(); renderSeasonLeaderboard(); renderVCard(); };
 function renderLiveLeaderboard(){
   const modeNow = load(LS.mode, 'individual');
   leaderMode.value = modeNow; scoreMode.value = modeNow;
@@ -556,13 +651,14 @@ function renderLiveLeaderboard(){
     });
   } else {
     const trows = [];
-    const tdefs = [{id:'t1', name:teams.t1.name, members:teams.t1.members}, {id:'t2', name:teams.t2.name, members:teams.t2.members}];
+    const tdefs = [{id:'t1', name:teams.t1.name, members:teams.t1.members},
+                   {id:'t2', name:teams.t2.name, members:teams.t2.members},
+                   {id:'t3', name:teams.t3.name, members:teams.t3.members}];
     tdefs.forEach(t=>{
-      const mems = selectedPlayerIds.filter(pid => t.members.includes(pid));
-      if(mems.length===0) return;
-      let total=0;
-      mems.forEach(pid => { const arr = scores[pid] || Array(9).fill(0); total += arr.reduce((a,b)=>a+(b||0),0); });
-      trows.push({key:t.id, name:`${t.name} (${mems.length})`, total});
+      if(t.members.length===0) return;
+      const arr = teamScores[t.id] || Array(9).fill(0);
+      const total = arr.reduce((a,b)=>a+(b||0),0);
+      trows.push({key:t.id, name:`${t.name}`, total});
     });
     trows.sort((a,b)=> a.total - b.total || a.name.localeCompare(b.name));
     trows.forEach((r,i)=>{
@@ -602,17 +698,14 @@ function renderSeasonLeaderboard(){
       season.appendChild(row);
     });
   } else {
-    const tdefs = [{id:'t1', name:teams.t1.name, members:teams.t1.members}, {id:'t2', name:teams.t2.name, members:teams.t2.members}];
     const map = new Map(); // tid -> {name, rounds, sum}
     rounds.forEach(r=>{
-      tdefs.forEach(t=>{
-        const mems = r.playerIds.filter(pid => t.members.includes(pid));
-        if(mems.length===0) return;
-        let total = 0;
-        mems.forEach(pid => { const arr = r.scores[pid] || Array(9).fill(0); total += arr.reduce((a,b)=>a+b,0); });
-        const cur = map.get(t.id) || {name:t.name, rounds:0, sum:0};
-        cur.rounds += 1; cur.sum += total;
-        map.set(t.id, cur);
+      if(!r.scoresTeam) return;
+      Object.entries(r.scoresTeam).forEach(([tid, arr])=>{
+        const name = (teams[tid]?.name) || tid.toUpperCase();
+        const total = (arr||Array(9).fill(0)).reduce((a,b)=>a+b,0);
+        const cur = map.get(tid) || {name, rounds:0, sum:0};
+        cur.rounds += 1; cur.sum += total; map.set(tid, cur);
       });
     });
     const rows = [...map.entries()].map(([tid, v]) => ({tid, ...v, avg: v.sum / v.rounds}))
@@ -630,7 +723,7 @@ function renderSeasonLeaderboard(){
 
 /* ---------- Actions ---------- */
 addPlayerBtn.onclick=()=>{ const name=newPlayerName.value.trim(); if(!name) return;
-  const p={id:uid(), name}; players.push(p); newPlayerName.value=''; saveAll(); renderSetupPlayers(); renderPlayersChips(); renderVCard(); renderLiveLeaderboard(); renderSeasonLeaderboard(); renderTeamsTab(); };
+  const p={id:uid(), name}; players.push(p); newPlayerName.value=''; saveAll(); renderSetupPlayers(); renderPlayersChips(); renderVCard(); renderLiveLeaderboard(); renderSeasonLeaderboard(); renderTeamsTab(); renderRoster(); };
 newCourseBtn.onclick=()=>{ const name=prompt('Course name?','Potrero Golf Course'); if(!name) return;
   const c={ id:uid(), name, holes:Array.from({length:9},(_,i)=>({number:i+1,name:`Hole ${i+1}`})) };
   courses.push(c); activeCourseId=c.id; saveAll(); renderAll();
@@ -641,11 +734,14 @@ delCourseBtn.onclick=()=>{ if(courses.length<=1) return alert('Keep at least one
 };
 function startNewRound(){ const d=nextSunday(); dateISO=d.toISOString();
   scores={}; selectedPlayerIds.forEach(pid => scores[pid]=Array(9).fill(0));
+  teamScores={t1:Array(9).fill(0), t2:Array(9).fill(0), t3:Array(9).fill(0)};
+  save(LS.teamScores, teamScores);
   dateInput.value = toLocalInput(new Date(dateISO));
   renderVCard(); renderLiveLeaderboard();
 }
-function saveRound(){ const r={ id:uid(), date:new Date(dateInput.value||new Date()).toISOString(), courseId:activeCourseId, playerIds:[...selectedPlayerIds], scores:{} };
+function saveRound(){ const r={ id:uid(), date:new Date(dateInput.value||new Date()).toISOString(), courseId:activeCourseId, playerIds:[...selectedPlayerIds], scores:{}, scoresTeam:{} };
   selectedPlayerIds.forEach(pid => r.scores[pid] = (scores[pid]||Array(9).fill(0)).slice());
+  ['t1','t2','t3'].forEach(tid => { const arr = (teamScores[tid]||Array(9).fill(0)).slice(); if(arr.some(x=>x>0)) r.scoresTeam[tid]=arr; });
   rounds.unshift(r); saveAll(); renderRounds(); renderSeasonLeaderboard(); alert('Round saved!');
 }
 function toCSV(round, players){
@@ -657,21 +753,19 @@ function toCSV(round, players){
   });
   const totals = ['Total', ...round.playerIds.map(pid => (round.scores[pid]||Array(9).fill(0)).reduce((a,b)=>a+b,0))];
   const all = [header, ...rows, totals];
-  return all.map(r => r.map(v => String(v)).join(',')).join('\\n');
+  return all.map(r => r.map(v => String(v)).join('\\n'));
 }
 function exportCSV(){ const course=courses.find(c=>c.id===activeCourseId);
-  const tempRound={ id:'temp', date:new Date(dateInput.value||new Date()).toISOString(), courseId:activeCourseId, playerIds:selectedPlayerIds, scores };
+  const tempRound={ id:'temp', date:new Date(dateInput.value||new Date()).toISOString(), courseId:activeCourseId, playerIds:selectedPlayerIds, scores, scoresTeam: teamScores };
   const courseName=(course?.name||'Course').replace(/\\s+/g,'_');
   download(`${courseName}_${tempRound.date.slice(0,10)}.csv`, toCSV(tempRound, players), 'text/csv');
 }
 function exportJSON(){ download('golf9_data.json', JSON.stringify({players,courses,rounds,teams,mode:load(LS.mode, 'individual')}, null, 2), 'application/json'); }
-function saveAll(){ save(LS.players,players); save(LS.courses,courses); save(LS.rounds,rounds); save(LS.teams,teams); save(LS.mode, scoreMode.value); }
+function saveAll(){ save(LS.players,players); save(LS.courses,courses); save(LS.rounds,rounds); save(LS.teams,teams); save(LS.mode, scoreMode.value); save(LS.teamScores, teamScores); }
 
 /* ---------- Init ---------- */
 function renderAll(){ renderCourseSelect(); renderPlayersChips(); renderSetupPlayers(); renderVCard(); renderRounds(); renderTeamsTab(); renderLiveLeaderboard(); renderSeasonLeaderboard(); scoreMode.value = mode; leaderMode.value = mode; }
-function init(){ renderAll(); const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalInput(d); 
-  keypad.innerHTML=''; for(let n=1;n<=8;n++){ const b=document.createElement('button'); b.textContent=String(n); b.onclick=()=>{ if(keypadTarget) setScore(keypadTarget.pid, keypadTarget.idx, n); overlay.style.display='none'; }; keypad.appendChild(b); }
-}
+function init(){ renderAll(); const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalInput(d); }
 init();
 </script>
 </body>
