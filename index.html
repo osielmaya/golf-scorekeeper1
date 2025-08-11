@@ -81,7 +81,7 @@
           <div class="card-h">
             <div>
               <h2>Scorecard</h2>
-              <div class="muted">Rows = Hole 1…9, Columns = Players (stroke play).</div>
+              <div class="muted">Rows = Hole 1…9, Columns = Players (stroke play only).</div>
             </div>
             <div class="row">
               <button id="btnNew">New Round</button>
@@ -212,7 +212,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
   document.getElementById('installHint').style.display = 'flex';
 });
 document.getElementById('installBtn').onclick = async () => {
-  if (!deferredPrompt) return alert('If you do not see the install prompt, add to Home Screen from your browser menu.');
+  if (!deferredPrompt) return alert('If you do not see the install prompt, use your browser menu to Add to Home Screen / Install app.');
   deferredPrompt.prompt();
   await deferredPrompt.userChoice;
   deferredPrompt = null;
@@ -222,7 +222,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./service-worker.js').catch(console.error);
   });
-});
+}
 
 /* ---------- Utilities ---------- */
 const LS = { players:'g9_players_v1', courses:'g9_courses_v1', rounds:'g9_rounds_v1' };
@@ -264,7 +264,7 @@ el('btnNew').onclick = startNewRound;
 el('btnSave').onclick = saveRound;
 el('btnCSV').onclick = exportCSV;
 el('btnExport').onclick = exportJSON;
-el('btnImport').onclick = ()=> el('fileInput').click();
+el('btnImport').onclick = ()=> el('fileInput')?.click();
 el('fileInput')?.addEventListener('change', (e)=>{
   const f = e.target.files && e.target.files[0]; if(!f) return;
   const reader = new FileReader();
@@ -313,7 +313,7 @@ function makeBigCell(pid, idx, value){
 }
 function renderVCard(){
   const course = courses.find(c=>c.id===activeCourseId); if(!course) return;
-  // Header: first sticky hole column then each player name
+  // Header: first sticky hole column then each player name, plus totals
   vHead.innerHTML='';
   const trh=document.createElement('tr');
   const thHole=document.createElement('th'); thHole.textContent='Hole'; thHole.className='namecell'; trh.appendChild(thHole);
@@ -333,7 +333,7 @@ function renderVCard(){
       const arr=scores[pid] || Array(9).fill(0);
       tr.appendChild(makeBigCell(pid, i, arr[i]||0));
     });
-    // total per hole across players (optional blank); keep blank for clarity
+    // a blank for symmetry
     const td=document.createElement('td'); td.textContent=''; tr.appendChild(td);
     vBody.appendChild(tr);
   }
