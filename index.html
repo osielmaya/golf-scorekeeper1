@@ -53,10 +53,10 @@
     .leader-name{flex:1}
     .leader-score{font-weight:700;min-width:70px;text-align:right}
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:end;justify-content:center;z-index:10050}
-    .bigfinal{height:60px;font-size:20px;font-weight:800;border-radius:16px;width:100%}
+    .bigfinal{height:52px;font-size:18px;font-weight:800;border-radius:14px;width:100%}
     .actionbar{position:fixed;left:0;right:0;bottom:0;padding:10px env(safe-area-inset-right,0) calc(env(safe-area-inset-bottom,0) + 10px) env(safe-area-inset-left,0);background:rgba(246,247,251,.96);backdrop-filter:saturate(1.2) blur(6px);border-top:1px solid #e5e7eb;z-index:10000}
     .actionbar .row{max-width:1100px;margin:0 auto}
-    body{padding-bottom:96px}
+    body{padding-bottom:0}
     .sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:14px 14px 20px 14px;box-shadow:0 -10px 30px rgba(0,0,0,.2)}
     .gridnums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
     .gridnums button{height:54px;border-radius:12px;border:1px solid var(--border);background:#f8fafc;font-size:24px;font-weight:bold;color:#000}
@@ -91,7 +91,7 @@
                 <option value="teams">Teams</option>
               </select>
             </div>
-            <button id="btnNew">New Round</button>
+            <button id="btnClearRound" class="ghost">New Round / Clear Score</button>
             <button id="btnSave">Save</button>
             <button class="ghost" id="btnCSV">CSV</button>
           </div>
@@ -233,14 +233,7 @@
     </div>
 
     <footer>Installable PWA • Offline ready • Data stays on your device</footer>
-  </div>
-
-  <div class="actionbar">
-    <div class="row">
-      <button id="btnFinalize" class="bigfinal">Final Score</button>
-      <button id="btnClearRound" class="ghost" style="height:60px;border-radius:16px;white-space:nowrap">New Round / Clear Score</button>
-    </div>
-  </div>
+  </div></div>
 
   <div id="installHint" class="install-hint">
     <span>Install this app: on iPhone tap <strong>Share</strong> → <strong>Add to Home Screen</strong>; on Android tap the menu → <strong>Install app</strong>.</span>
