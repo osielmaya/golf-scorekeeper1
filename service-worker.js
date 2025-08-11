@@ -1,5 +1,5 @@
 // Service worker with auto-refresh (responds to SKIP_WAITING)
-const CACHE_NAME = 'golf9-auto-v12';
+const CACHE_NAME = 'golf9-auto-v13';
 const ASSETS = [
   './',
   './index.html',
