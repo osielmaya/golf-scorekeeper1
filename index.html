@@ -23,32 +23,26 @@
     .tabs{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
     .tab{border:1px solid var(--border);padding:8px 12px;border-radius:999px;background:#fff;cursor:pointer}
     .tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
-    .grid{display:grid;grid-template-columns:1fr;gap:12px}
-    @media (min-width:1000px){ .grid{grid-template-columns:2fr 1fr} }
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 6px 20px rgba(0,0,0,.04)}
     .card-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
     .card-h h2{font-size:1rem;margin:0}
-    .muted{color:var(--muted);font-size:.9rem}
     .card-c{padding:12px 14px}
+    .muted{color:var(--muted);font-size:.9rem}
     .row{display:flex;gap:8px;flex-wrap:wrap}
     .row>.flex{flex:1}
     label.small{font-size:.75rem;color:var(--muted);display:block;margin-bottom:4px}
     input,select,button{height:44px;border-radius:12px;border:1px solid var(--border);padding:0 12px;font-size:16px;background:#fff}
-    button{background:var(--ink);color:#fff;border-color:var(--ink);cursor:pointer}
+    button{background:#0f172a;color:#fff;border-color:#0f172a;cursor:pointer}
     button.ghost{background:#fff;color:#111827;border-color:#efefef}
     button.warn{background:#ef4444;border-color:#ef4444}
-    .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer;font-size:16px}
-    .chip input{width:18px;height:18px}
     table{width:100%;border-collapse:separate;border-spacing:0;overflow:auto}
     thead th{position:sticky;top:0;background:#f3f4f6;z-index:1}
     th,td{border-bottom:1px solid var(--border);padding:10px;text-align:center}
     td:first-child,th:first-child{text-align:left}
-    .scoreinput{width:78px;text-align:center;font-size:22px;height:48px}
-    .pill{border-radius:999px;padding:4px 8px;font-size:.95rem}
-    .good{color:#059669} .bad{color:#dc2626}
-    .section{margin:12px 0}
-    .list{display:flex;flex-direction:column;gap:8px}
-    .item{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff}
+    .cellbtn{width:78px;height:48px;border:1px solid var(--border);border-radius:12px;background:#fff;font-size:22px}
+    .vscore{overflow:auto;border:1px solid var(--border);border-radius:12px;background:#fff;margin-top:12px}
+    .namecell{position:sticky;left:0;background:#fff;border-right:1px solid var(--border)}
+    .tiny-roster{font-size:.8rem;color:#374151;margin:6px 0 10px 0}
     footer{margin:16px 0;color:var(--muted);font-size:.8rem;text-align:center}
     .install-hint{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:680px;background:#111827;color:#fff;padding:10px 12px;border-radius:12px 12px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.25);display:none}
     .install-hint button{background:#fff;color:#111827;border-color:#fff}
@@ -56,21 +50,11 @@
     .leader-rank{font-weight:700;width:36px;text-align:center}
     .leader-name{flex:1}
     .leader-score{font-weight:700;min-width:70px;text-align:right}
-    .subtitle{font-size:.9rem;color:var(--muted);margin-top:4px}
-    .vscore{overflow:auto;border:1px solid var(--border);border-radius:12px;background:#fff}
-    .namecell{position:sticky;left:0;background:#fff;border-right:1px solid var(--border)}
-    /* keypad overlay */
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:end;justify-content:center}
     .sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:14px 14px 20px 14px;box-shadow:0 -10px 30px rgba(0,0,0,.2)}
     .gridnums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
-    .gridnums button{height:54px;border-radius:12px;border:1px solid var(--border);background:#f8fafc;font-size:18px;color:#111}
+    .gridnums button{height:54px;border-radius:12px;border:1px solid var(--border);background:#f8fafc;font-size:18px}
     .sheet-h{display:flex;align-items:center;gap:8px;justify-content:space-between}
-    .sheet-h .title{font-weight:700}
-    .mode-wrap{display:flex;align-items:center;gap:8px}
-    .roster{font-size:.9rem;color:#111}
-    .roster h4{margin:.2rem 0 .4rem 0;font-size:.95rem;color:#374151}
-    .roster .team{border:1px solid var(--border);border-radius:12px;padding:8px;margin-bottom:8px;background:#fff}
-    .roster ul{margin:6px 0 0 1rem;padding:0}
   </style>
 </head>
 <body>
@@ -87,52 +71,78 @@
       <div class="tab" data-tab="backup">Backup</div>
     </div>
 
+    <!-- SCORE TAB -->
     <div id="tab-score" class="tabview">
-      <div class="grid">
-        <!-- Left: Scorecard -->
-        <div class="card">
-          <div class="card-h">
-            <div>
-              <h2>Scorecard</h2>
-              <div class="muted">Individuals: players across top. Teams: only Team 1/2/3 columns. Tap a cell → keypad 1–8; use More… for 9–15.</div>
-            </div>
-            <div class="row">
-              <div class="mode-wrap">
-                <label class="small">Mode</label>
-                <select id="scoreMode">
-                  <option value="individual">Individuals</option>
-                  <option value="teams">Teams</option>
-                </select>
-              </div>
-              <button id="btnNew">New Round</button>
-              <button id="btnSave">Save</button>
-              <button class="ghost" id="btnCSV">CSV</button>
-            </div>
+      <div class="card">
+        <div class="card-h">
+          <div>
+            <h2>Scorecard</h2>
+            <div class="muted">Individuals: players as columns. Teams: Team 1/2/3 as columns. Tap a cell → keypad 1–8; tap More… to type 9–15.</div>
           </div>
-          <div class="card-c">
-            <div class="row section">
-              <div class="flex">
-                <label class="small">Course</label>
-                <select id="courseSelect"></select>
-              </div>
-              <div>
-                <label class="small">Date</label>
-                <input id="dateInput" type="datetime-local" />
-              </div>
+          <div class="row">
+            <div class="row" style="align-items:center">
+              <label class="small">Mode</label>
+              <select id="scoreMode">
+                <option value="individual">Individuals</option>
+                <option value="teams">Teams</option>
+              </select>
             </div>
-
-            <div class="section vscore">
-              <table id="vTable">
-                <thead id="vHead"></thead>
-                <tbody id="vBody"></tbody>
-              </table>
-            </div>
-            <div class="muted">Lower total wins.</div>
+            <button id="btnNew">New Round</button>
+            <button id="btnSave">Save</button>
+            <button class="ghost" id="btnCSV">CSV</button>
           </div>
         </div>
+        <div class="card-c">
+          <div class="row">
+            <div class="flex">
+              <label class="small">Course</label>
+              <select id="courseSelect"></select>
+            </div>
+            <div>
+              <label class="small">Date</label>
+              <input id="dateInput" type="datetime-local" />
+            </div>
+          </div>
 
-        <!-- Right: (removed) no side panel in Score tab -->
-      
+          <div id="topRoster" class="tiny-roster" style="display:none"></div>
+
+          <div class="vscore">
+            <table id="vTable">
+              <thead id="vHead"></thead>
+              <tbody id="vBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEADERBOARD TAB -->
+    <div id="tab-leaderboard" class="tabview" style="display:none">
+      <div class="card">
+        <div class="card-h">
+          <h2>Leaderboard</h2>
+          <div class="row">
+            <select id="leaderMode">
+              <option value="individual">Individuals</option>
+              <option value="teams">Teams</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-c">
+          <div class="muted">Live for current round; matches the Mode.</div>
+          <div id="liveLeaders" class="list" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="card-h"><h2>Season Standings</h2></div>
+        <div class="card-c">
+          <div id="seasonLeaders" class="list" style="margin-top:10px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLAYERS TAB -->
     <div id="tab-players" class="tabview" style="display:none">
       <div class="card">
         <div class="card-h"><h2>Players</h2></div>
@@ -150,33 +160,7 @@
       </div>
     </div>
 
-
-    <div id="tab-leaderboard" class="tabview" style="display:none">
-      <div class="card">
-        <div class="card-h">
-          <h2>Leaderboard</h2>
-          <div class="row">
-            <select id="leaderMode">
-              <option value="individual">Individuals</option>
-              <option value="teams">Teams</option>
-            </select>
-          </div>
-        </div>
-        <div class="card-c">
-          <div class="subtitle">Live for current round; matches the Mode.</div>
-          <div id="liveLeaders" class="list" style="margin-top:10px"></div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top:12px">
-        <div class="card-h"><h2>Season Standings</h2></div>
-        <div class="card-c">
-          <div class="subtitle">Averages across all saved rounds.</div>
-          <div id="seasonLeaders" class="list" style="margin-top:10px"></div>
-        </div>
-      </div>
-    </div>
-
+    <!-- TEAMS TAB -->
     <div id="tab-teams" class="tabview" style="display:none">
       <div class="card">
         <div class="card-h"><h2>Teams</h2></div>
@@ -200,6 +184,7 @@
       </div>
     </div>
 
+    <!-- COURSES TAB -->
     <div id="tab-courses" class="tabview" style="display:none">
       <div class="card">
         <div class="card-h"><h2>Courses</h2></div>
@@ -214,6 +199,7 @@
       </div>
     </div>
 
+    <!-- HISTORY TAB -->
     <div id="tab-history" class="tabview" style="display:none">
       <div class="card">
         <div class="card-h"><h2>Past Rounds</h2></div>
@@ -223,6 +209,7 @@
       </div>
     </div>
 
+    <!-- BACKUP TAB -->
     <div id="tab-backup" class="tabview" style="display:none">
       <div class="card">
         <div class="card-h"><h2>Backup</h2></div>
@@ -249,14 +236,14 @@
     <div class="sheet">
       <div class="sheet-h">
         <div class="title">Set strokes</div>
-        <button id="closeOverlay" class="ghost" style="margin-left:auto">✕</button>
+        <button id="closeOverlay" class="ghost">✕</button>
       </div>
       <div class="gridnums" id="keypad"></div>
       <div class="row" style="margin-top:10px;justify-content:flex-end">
         <button id="moreBtn" class="ghost">More…</button>
       </div>
       <div class="row" id="manualRow" style="margin-top:10px; display:none">
-        <input id="directInput" type="number" min="0" max="20" class="flex" placeholder="Type 9–15" />
+        <input id="directInput" type="number" inputmode="none" min="0" max="20" class="flex" placeholder="Type 9–15" />
         <button id="applyDirect">Apply</button>
       </div>
     </div>
@@ -276,6 +263,7 @@ document.querySelectorAll('.tab').forEach(t => {
     if(name==='teams'){ renderTeamsTab(); }
     if(name==='courses'){ renderSetupCourse(); }
     if(name==='players'){ renderPlayersChips(); renderSetupPlayers(); }
+    if(name==='score'){ renderVCard(); }
   });
 });
 
@@ -317,7 +305,7 @@ if ('serviceWorker' in navigator) {
 }
 
 /* ---------- Utilities ---------- */
-const LS = { players:'g9_players_v4', courses:'g9_courses_v4', rounds:'g9_rounds_v4', teams:'g9_teams_v3', mode:'g9_mode_v2', teamScores:'g9_team_scores_tmp' };
+const LS = { players:'g9_players_v5', courses:'g9_courses_v5', rounds:'g9_rounds_v5', teams:'g9_teams_v4', mode:'g9_mode_v3', teamScores:'g9_team_scores_v1' };
 const el = id => document.getElementById(id);
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)); }
 function load(key, fallback){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback }catch{ return fallback } }
@@ -349,13 +337,31 @@ let teamScores = load(LS.teamScores, {t1:Array(9).fill(0), t2:Array(9).fill(0), 
 let dateISO = new Date().toISOString();
 let keypadTarget = null; // {type:'player'|'team', key:pid|tid, idx}
 
-/* ---------- DOM ---------- */
+/* ---------- Keypad ---------- */
+const overlay = el('overlay');
+const keypad = el('keypad');
+const moreBtn = el('moreBtn');
+const manualRow = el('manualRow');
+const directInput = el('directInput');
+el('closeOverlay').onclick = ()=>{ overlay.style.display='none'; manualRow.style.display='none'; };
+function buildKeypad(){
+  keypad.innerHTML='';
+  for(let n=1;n<=8;n++){
+    const b=document.createElement('button'); b.textContent=String(n);
+    b.onclick=()=>{ if(!keypadTarget) return; setScore(keypadTarget.type, keypadTarget.key, keypadTarget.idx, n); overlay.style.display='none'; manualRow.style.display='none'; };
+    keypad.appendChild(b);
+  }
+}
+buildKeypad();
+moreBtn.onclick = ()=>{ manualRow.style.display = 'flex'; /* no auto-focus */ };
+el('applyDirect').onclick = ()=>{ const v = Math.max(0, Math.min(20, parseInt(directInput.value||'0',10)||0)); if(keypadTarget){ setScore(keypadTarget.type, keypadTarget.key, keypadTarget.idx, v); } overlay.style.display='none'; manualRow.style.display='none'; };
+
+/* ---------- Rendering ---------- */
 const courseSelect = el('courseSelect');
 const dateInput   = el('dateInput');
-const playersSection = el('playersSection');
-const playersChips = el('playersChips');
 const vHead = el('vHead');
 const vBody = el('vBody');
+const playersChips = el('playersChips');
 const playersList = el('playersList');
 const newPlayerName = el('newPlayerName');
 const addPlayerBtn = el('addPlayerBtn');
@@ -366,29 +372,8 @@ const holesGrid = el('holesGrid');
 const roundsList = el('roundsList');
 const leaderMode = el('leaderMode');
 const scoreMode = el('scoreMode');
-const overlay = el('overlay');
-const keypad = el('keypad');
-const moreBtn = el('moreBtn');
-const manualRow = el('manualRow');
-const directInput = el('directInput');
-const sideTitle = el('sideTitle');
-const rosterBox = el('rosterBox');
-const rosterTeams = el('rosterTeams');
+const topRoster = el('topRoster');
 
-/* ---------- Keypad ---------- */
-function buildKeypad(){
-  keypad.innerHTML='';
-  for(let n=1;n<=8;n++){
-    const b=document.createElement('button'); b.textContent=String(n);
-    b.onclick=()=>{ if(!keypadTarget) return; setScore(keypadTarget.type, keypadTarget.key, keypadTarget.idx, n); overlay.style.display='none'; manualRow.style.display='none'; };
-    keypad.appendChild(b);
-  }
-}
-buildKeypad();
-moreBtn.onclick = ()=>{ manualRow.style.display = 'flex'; };
-el('applyDirect').onclick = ()=>{ const v = Math.max(0, Math.min(20, parseInt(directInput.value||'0',10)||0)); if(keypadTarget){ setScore(keypadTarget.type, keypadTarget.key, keypadTarget.idx, v); } overlay.style.display='none'; manualRow.style.display='none'; };
-
-/* ---------- Rendering ---------- */
 function renderCourseSelect(){
   courseSelect.innerHTML = '';
   courses.forEach(c=>{
@@ -400,11 +385,12 @@ function renderCourseSelect(){
 function renderPlayersChips(){
   playersChips.innerHTML='';
   players.forEach(p=>{
-    const wrapper=document.createElement('label'); wrapper.className='chip';
+    const label=document.createElement('label'); label.className='tab chip';
     const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=selectedPlayerIds.includes(p.id);
     chk.onchange=()=>{ if(chk.checked){ if(!selectedPlayerIds.includes(p.id)) selectedPlayerIds.push(p.id); if(!scores[p.id]) scores[p.id]=Array(9).fill(0); } else { selectedPlayerIds=selectedPlayerIds.filter(id=>id!==p.id); } renderVCard(); renderLiveLeaderboard(); saveAll(); };
     const span=document.createElement('span'); span.textContent=p.name;
-    wrapper.append(chk,span); playersChips.appendChild(wrapper);
+    label.append(chk,span);
+    playersChips.appendChild(label);
   });
 }
 function openKeypad(targetType, key, idx, current){
@@ -413,97 +399,73 @@ function openKeypad(targetType, key, idx, current){
   manualRow.style.display='none';
   overlay.style.display='flex';
 }
-function makeCell_input(openFn, value){
+function makeCell(value, openFn){
   const td=document.createElement('td');
-  const input=document.createElement('input'); input.type='number'; input.className='scoreinput'; input.value=String(value||0); input.min='0'; input.max='20';
-  input.onfocus=()=> openFn();
-  input.onclick=()=> openFn();
-  input.oninput=()=>{ let v=parseInt(input.value||'0',10); if(isNaN(v)) v=0; v=Math.max(0, Math.min(20, v)); input.value=String(v); /* don't set until Apply or keypad */ };
-  td.appendChild(input); return td;
+  const btn=document.createElement('button'); btn.className='cellbtn'; btn.textContent=String(value||0);
+  btn.onclick = openFn;
+  td.appendChild(btn);
+  return td;
 }
-function renderRoster(){
-  rosterTeams.innerHTML='';
-  const defs=[{id:'t1',...teams.t1},{id:'t2',...teams.t2},{id:'t3',...teams.t3}];
-  defs.forEach(t=>{
-    if(!t.name) return;
-    const box=document.createElement('div'); box.className='team';
-    const title=document.createElement('div'); title.innerHTML = `<strong>${t.name}</strong>`;
-    const ul=document.createElement('ul');
-    t.members.forEach(pid => {
-      const p = players.find(x=>x.id===pid);
-      const li=document.createElement('li'); li.textContent = p ? p.name : pid; ul.appendChild(li);
-    });
-    box.append(title,ul);
-    rosterTeams.appendChild(box);
+function renderRosterLine(){
+  const defs = [{id:'t1', ...teams.t1},{id:'t2', ...teams.t2},{id:'t3', ...teams.t3}];
+  const parts = defs.filter(t=>t.members && t.members.length>0).map(t=>{
+    const names = t.members.map(pid => (players.find(x=>x.id===pid)||{name:pid}).name).join(', ');
+    return `${t.name}: ${names}`;
   });
+  if(parts.length>0){ topRoster.textContent = parts.join('  •  '); topRoster.style.display='block'; }
+  else { topRoster.style.display='none'; }
 }
 function renderVCard(){
   const course = courses.find(c=>c.id===activeCourseId); if(!course) return;
   const modeNow = load(LS.mode, 'individual');
+  // header
   vHead.innerHTML=''; vBody.innerHTML='';
-
-  // Toggle players section + side roster
-  if(modeNow==='individual'){
-    playersSection.style.display='block';
-    sideTitle.textContent='Players';
-    rosterBox.style.display='none';
-  } else {
-    playersSection.style.display='none';
-    sideTitle.textContent='Teams & Roster';
-    rosterBox.style.display='block';
-    renderRoster();
-  }
-
-  // Header row
   const trh=document.createElement('tr');
   const thHole=document.createElement('th'); thHole.textContent='Hole'; thHole.className='namecell'; trh.appendChild(thHole);
 
   if(modeNow==='individual'){
+    topRoster.style.display='none';
     selectedPlayerIds.forEach(pid=>{
       const name = (players.find(p=>p.id===pid)||{name:pid}).name;
       const th=document.createElement('th'); th.textContent = name; trh.appendChild(th);
     });
   } else {
-    const tdefs = [{id:'t1',name:teams.t1.name,members:teams.t1.members},
-                   {id:'t2',name:teams.t2.name,members:teams.t2.members},
-                   {id:'t3',name:teams.t3.name,members:teams.t3.members}];
-    tdefs.forEach(t=>{
-      if(t.members.length>0){ const th=document.createElement('th'); th.textContent=t.name||t.id.toUpperCase(); trh.appendChild(th); }
-    });
+    renderRosterLine();
+    const tdefs=[{id:'t1', name:teams.t1.name, members:teams.t1.members},
+                 {id:'t2', name:teams.t2.name, members:teams.t2.members},
+                 {id:'t3', name:teams.t3.name, members:teams.t3.members}];
+    tdefs.forEach(t=>{ if(t.members.length>0){ const th=document.createElement('th'); th.textContent=t.name||t.id.toUpperCase(); trh.appendChild(th); } });
   }
   const thTotal=document.createElement('th'); thTotal.textContent='Total'; trh.appendChild(thTotal);
   vHead.appendChild(trh);
 
-  // Body rows
+  // body rows
   for(let i=0;i<9;i++){
     const tr=document.createElement('tr');
-    const th=document.createElement('th'); th.textContent = 'H'+(i+1); th.className='namecell'; tr.appendChild(th);
-
+    const th=document.createElement('th'); th.textContent='H'+(i+1); th.className='namecell'; tr.appendChild(th);
     if(modeNow==='individual'){
       selectedPlayerIds.forEach(pid=>{
         const arr=scores[pid] || Array(9).fill(0);
-        tr.appendChild(makeCell_input(()=> openKeypad('player', pid, i, arr[i]||0), arr[i]||0));
+        tr.appendChild(makeCell(arr[i]||0, ()=>openKeypad('player', pid, i, arr[i]||0)));
       });
     } else {
-      const tdefs = [{id:'t1',name:teams.t1.name,members:teams.t1.members},
-                     {id:'t2',name:teams.t2.name,members:teams.t2.members},
-                     {id:'t3',name:teams.t3.name,members:teams.t3.members}];
+      const tdefs=[{id:'t1', name:teams.t1.name, members:teams.t1.members},
+                   {id:'t2', name:teams.t2.name, members:teams.t2.members},
+                   {id:'t3', name:teams.t3.name, members:teams.t3.members}];
       tdefs.forEach(t=>{
         if(t.members.length>0){
-          const arr = teamScores[t.id] || Array(9).fill(0);
-          tr.appendChild(makeCell_input(()=> openKeypad('team', t.id, i, arr[i]||0), arr[i]||0));
+          const arr=teamScores[t.id] || Array(9).fill(0);
+          tr.appendChild(makeCell(arr[i]||0, ()=>openKeypad('team', t.id, i, arr[i]||0)));
         }
       });
     }
-
     const td=document.createElement('td'); td.textContent=''; tr.appendChild(td);
     vBody.appendChild(tr);
   }
 
-  // Totals row
+  // totals
   const trt=document.createElement('tr');
   const tht=document.createElement('th'); tht.textContent='Total'; tht.className='namecell'; trt.appendChild(tht);
-
   if(modeNow==='individual'){
     selectedPlayerIds.forEach(pid=>{
       const arr=scores[pid] || Array(9).fill(0);
@@ -511,9 +473,9 @@ function renderVCard(){
       const td=document.createElement('td'); td.textContent=String(total); trt.appendChild(td);
     });
   } else {
-    const tdefs = [{id:'t1',name:teams.t1.name,members:teams.t1.members},
-                   {id:'t2',name:teams.t2.name,members:teams.t2.members},
-                   {id:'t3',name:teams.t3.name,members:teams.t3.members}];
+    const tdefs=[{id:'t1', name:teams.t1.name, members:teams.t1.members},
+                 {id:'t2', name:teams.t2.name, members:teams.t2.members},
+                 {id:'t3', name:teams.t3.name, members:teams.t3.members}];
     tdefs.forEach(t=>{
       if(t.members.length>0){
         const arr=teamScores[t.id] || Array(9).fill(0);
@@ -535,60 +497,38 @@ function setScore(targetType, key, idx, v){
     teamScores[key][idx]=v;
   }
   saveAll();
-  renderVCard();
-  renderLiveLeaderboard();
+  renderVCard(); renderLiveLeaderboard();
 }
 
-/* ---------- Players / Courses ---------- */
+/* ---------- Players & Teams & Courses ---------- */
 function renderSetupPlayers(){
   playersList.innerHTML='';
   players.forEach(p=>{
-    const item=document.createElement('div'); item.className='item';
-    const left=document.createElement('div'); left.style.flex='1';
-    const inp=document.createElement('input'); inp.value=p.name; inp.oninput=()=>{ p.name=inp.value; saveAll(); renderPlayersChips(); renderVCard(); renderRounds(); renderLiveLeaderboard(); renderSeasonLeaderboard(); renderTeamsTab(); renderRoster(); };
-    left.appendChild(inp);
-    const actions=document.createElement('div');
-    const btnDel=document.createElement('button'); btnDel.className='warn'; btnDel.textContent='Delete';
-    btnDel.onclick=()=>{ players=players.filter(x=>x.id!==p.id); selectedPlayerIds=selectedPlayerIds.filter(id=>id!==p.id); delete scores[p.id]; ['t1','t2','t3'].forEach(tid => teams[tid].members = teams[tid].members.filter(id=>id!==p.id)); saveAll(); renderAll(); };
-    actions.appendChild(btnDel);
-    item.append(left,actions);
+    const item=document.createElement('div'); item.className='leader-row';
+    const nameInput=document.createElement('input'); nameInput.value=p.name; nameInput.oninput=()=>{ p.name=nameInput.value; saveAll(); renderVCard(); renderRounds(); renderLiveLeaderboard(); renderSeasonLeaderboard(); };
+    nameInput.style.flex='1';
+    const del=document.createElement('button'); del.className='warn'; del.textContent='Delete';
+    del.onclick=()=>{ players=players.filter(x=>x.id!==p.id); selectedPlayerIds=selectedPlayerIds.filter(id=>id!==p.id); delete scores[p.id]; ['t1','t2','t3'].forEach(tid => teams[tid].members = teams[tid].members.filter(id=>id!==p.id)); saveAll(); renderSetupPlayers(); renderPlayersChips(); renderVCard(); };
+    item.append(nameInput, del);
     playersList.appendChild(item);
   });
 }
-function renderSetupCourse(){
-  const c=courses.find(c=>c.id===activeCourseId); if(!c) return;
-  courseName.value=c.name;
-  courseName.oninput=()=>{ c.name=courseName.value; saveAll(); renderCourseSelect(); renderRounds(); };
-  holesGrid.innerHTML='';
-  c.holes.forEach((h,idx)=>{
-    const box=document.createElement('div'); box.className='item';
-    const left=document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='8px'; left.style.flex='1';
-    const tag=document.createElement('div'); tag.textContent='H'+h.number; tag.className='pill'; tag.style.border='1px solid var(--border)'; tag.style.background='#f3f4f6';
-    const name=document.createElement('input'); name.placeholder=`Hole ${h.number}`; name.value=h.name||''; name.oninput=()=>{ h.name=name.value; saveAll(); };
-    left.append(tag,name); box.appendChild(left);
-    holesGrid.appendChild(box);
-  });
-}
+addPlayerBtn && (addPlayerBtn.onclick = ()=>{ const name=newPlayerName.value.trim(); if(!name) return; const p={id:uid(), name}; players.push(p); newPlayerName.value=''; saveAll(); renderSetupPlayers(); renderPlayersChips(); renderVCard(); });
 
-/* ---------- Teams ---------- */
 function renderTeamsTab(){
   el('team1Name').value = teams.t1.name || 'Team 1';
   el('team2Name').value = teams.t2.name || 'Team 2';
   el('team3Name').value = teams.t3.name || 'Team 3';
-  el('team1Name').oninput = ()=>{ teams.t1.name = el('team1Name').value; saveAll(); renderLiveLeaderboard(); renderRoster(); renderVCard(); };
-  el('team2Name').oninput = ()=>{ teams.t2.name = el('team2Name').value; saveAll(); renderLiveLeaderboard(); renderRoster(); renderVCard(); };
-  el('team3Name').oninput = ()=>{ teams.t3.name = el('team3Name').value; saveAll(); renderLiveLeaderboard(); renderRoster(); renderVCard(); };
+  el('team1Name').oninput = ()=>{ teams.t1.name = el('team1Name').value; saveAll(); renderVCard(); renderLiveLeaderboard(); };
+  el('team2Name').oninput = ()=>{ teams.t2.name = el('team2Name').value; saveAll(); renderVCard(); renderLiveLeaderboard(); };
+  el('team3Name').oninput = ()=>{ teams.t3.name = el('team3Name').value; saveAll(); renderVCard(); renderLiveLeaderboard(); };
   const list = el('teamAssignList');
   list.innerHTML='';
   players.forEach(p=>{
-    const item = document.createElement('div'); item.className='item';
-    const left = document.createElement('div'); left.textContent = p.name; 
-    const select = document.createElement('select');
-    const opt0 = new Option('No team','none');
-    const opt1 = new Option(teams.t1.name || 'Team 1','t1');
-    const opt2 = new Option(teams.t2.name || 'Team 2','t2');
-    const opt3 = new Option(teams.t3.name || 'Team 3','t3');
-    select.append(opt0,opt1,opt2,opt3);
+    const row=document.createElement('div'); row.className='leader-row';
+    const label=document.createElement('div'); label.textContent=p.name; label.style.flex='1';
+    const select=document.createElement('select');
+    [['none','No team'],['t1',teams.t1.name||'Team 1'],['t2',teams.t2.name||'Team 2'],['t3',teams.t3.name||'Team 3']].forEach(([v,txt])=> select.appendChild(new Option(txt, v)));
     if(teams.t1.members.includes(p.id)) select.value='t1';
     else if(teams.t2.members.includes(p.id)) select.value='t2';
     else if(teams.t3.members.includes(p.id)) select.value='t3';
@@ -596,32 +536,55 @@ function renderTeamsTab(){
     select.onchange=()=>{
       ['t1','t2','t3'].forEach(tid => teams[tid].members = teams[tid].members.filter(id=>id!==p.id));
       if(select.value!=='none') teams[select.value].members.push(p.id);
-      saveAll(); renderLiveLeaderboard(); renderRoster(); renderVCard();
+      saveAll(); renderVCard(); renderLiveLeaderboard();
     };
-    item.append(left,select);
-    list.appendChild(item);
+    row.append(label, select);
+    list.appendChild(row);
   });
 }
 
-/* ---------- Rounds ---------- */
+function renderSetupCourse(){
+  const c=courses.find(c=>c.id===activeCourseId); if(!c) return;
+  courseName.value=c.name;
+  courseName.oninput=()=>{ c.name=courseName.value; saveAll(); renderCourseSelect(); renderRounds(); renderVCard(); };
+  holesGrid.innerHTML='';
+  c.holes.forEach(h=>{
+    const row=document.createElement('div'); row.className='leader-row';
+    const badge=document.createElement('div'); badge.textContent='H'+h.number;
+    const name=document.createElement('input'); name.value=h.name||''; name.oninput=()=>{ h.name=name.value; saveAll(); renderVCard(); };
+    name.style.flex='1'; row.append(badge, name); holesGrid.appendChild(row);
+  });
+}
+
+/* ---------- Rounds / CSV ---------- */
 function renderRounds(){
   roundsList.innerHTML='';
   if(rounds.length===0){ roundsList.innerHTML='<div class="muted">No rounds saved yet.</div>'; return; }
   rounds.forEach(r=>{
     const course = courses.find(c=>c.id===r.courseId) || courses[0];
     const date = new Date(r.date);
-    const item=document.createElement('div'); item.className='item';
-    const left=document.createElement('div'); left.innerHTML=`<div><strong>${course?course.name:"Course"}</strong> • ${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div><div class="muted" style="font-size:.85rem">Players: ${r.playerIds.map(pid => (players.find(p=>p.id===pid)||{name:pid}).name).join(", ")}</div>`;
-    const right=document.createElement('div'); right.style.display='flex'; right.style.gap='8px';
-    const btnCSV=document.createElement('button'); btnCSV.className='ghost'; btnCSV.textContent='CSV';
-    btnCSV.onclick=()=> download(`round_${date.toISOString().slice(0,10)}.csv`, toCSV(r, players), 'text/csv');
-    const btnDel=document.createElement('button'); btnDel.className='warn'; btnDel.textContent='Delete';
-    btnDel.onclick=()=>{ rounds=rounds.filter(x=>x.id!==r.id); saveAll(); renderRounds(); renderSeasonLeaderboard(); };
-    right.append(btnCSV, btnDel);
-    item.append(left,right);
-    roundsList.appendChild(item);
+    const row=document.createElement('div'); row.className='leader-row';
+    const left=document.createElement('div'); left.innerHTML = `<strong>${course?course.name:"Course"}</strong> • ${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`; left.style.flex='1';
+    const del=document.createElement('button'); del.className='warn'; del.textContent='Delete'; del.onclick=()=>{ rounds=rounds.filter(x=>x.id!==r.id); saveAll(); renderRounds(); renderSeasonLeaderboard(); };
+    row.append(left, del);
+    roundsList.appendChild(row);
   });
 }
+function startNewRound(){ const d=nextSunday(); dateISO=d.toISOString();
+  scores={}; selectedPlayerIds.forEach(pid => scores[pid]=Array(9).fill(0));
+  teamScores={t1:Array(9).fill(0), t2:Array(9).fill(0), t3:Array(9).fill(0)};
+  dateInput.value = toLocalInput(new Date(dateISO));
+  saveAll();
+  renderVCard(); renderLiveLeaderboard();
+}
+function saveRound(){ const r={ id:uid(), date:new Date(dateInput.value||new Date()).toISOString(), courseId:activeCourseId, playerIds:[...selectedPlayerIds], scores:{}, scoresTeam:{} };
+  selectedPlayerIds.forEach(pid => r.scores[pid] = (scores[pid]||Array(9).fill(0)).slice());
+  ['t1','t2','t3'].forEach(tid => { const arr = (teamScores[tid]||Array(9).fill(0)).slice(); if(arr.some(x=>x>0)) r.scoresTeam[tid]=arr; });
+  rounds.unshift(r); saveAll(); renderRounds(); renderSeasonLeaderboard(); alert('Round saved!');
+}
+document.getElementById('btnNew').onclick = startNewRound;
+document.getElementById('btnSave').onclick = saveRound;
+document.getElementById('btnCSV').onclick = ()=> alert('CSV export is coming back soon.');
 
 /* ---------- Leaderboards ---------- */
 leaderMode.onchange = ()=>{ save(LS.mode, leaderMode.value); renderLiveLeaderboard(); renderSeasonLeaderboard(); scoreMode.value = leaderMode.value; renderVCard(); };
@@ -647,18 +610,14 @@ function renderLiveLeaderboard(){
       live.appendChild(row);
     });
   } else {
-    const trows = [];
     const tdefs = [{id:'t1', name:teams.t1.name, members:teams.t1.members},
                    {id:'t2', name:teams.t2.name, members:teams.t2.members},
                    {id:'t3', name:teams.t3.name, members:teams.t3.members}];
-    tdefs.forEach(t=>{
-      if(t.members.length===0) return;
+    const rows = tdefs.filter(t=>t.members.length>0).map(t=>{
       const arr = teamScores[t.id] || Array(9).fill(0);
-      const total = arr.reduce((a,b)=>a+(b||0),0);
-      trows.push({key:t.id, name:`${t.name}`, total});
-    });
-    trows.sort((a,b)=> a.total - b.total || a.name.localeCompare(b.name));
-    trows.forEach((r,i)=>{
+      return {key:t.id, name:t.name, total:arr.reduce((a,b)=>a+(b||0),0)};
+    }).sort((a,b)=> a.total - b.total || a.name.localeCompare(b.name));
+    rows.forEach((r,i)=>{
       const row = document.createElement('div'); row.className='leader-row';
       const rank = document.createElement('div'); rank.className='leader-rank'; rank.textContent = String(i+1);
       const name = document.createElement('div'); name.className='leader-name'; name.textContent = r.name;
@@ -670,11 +629,10 @@ function renderLiveLeaderboard(){
 }
 function renderSeasonLeaderboard(){
   const modeNow = load(LS.mode, 'individual');
-  leaderMode.value = modeNow; scoreMode.value = modeNow;
   const season = document.getElementById('seasonLeaders');
   season.innerHTML='';
   if(modeNow==='individual'){
-    const map = new Map(); // pid -> {name, rounds, sum}
+    const map = new Map();
     rounds.forEach(r=>{
       r.playerIds.forEach(pid => {
         const arr = r.scores[pid] || Array(9).fill(0);
@@ -688,14 +646,11 @@ function renderSeasonLeaderboard(){
       .sort((a,b)=> a.avg - b.avg || b.rounds - a.rounds || a.name.localeCompare(b.name));
     rows.forEach((r,i)=>{
       const row = document.createElement('div'); row.className='leader-row';
-      const rank = document.createElement('div'); rank.className='leader-rank'; rank.textContent = String(i+1);
-      const name = document.createElement('div'); name.className='leader-name'; name.textContent = r.name + `  ·  ${r.rounds} rnds`;
-      const score = document.createElement('div'); score.className='leader-score'; score.textContent = r.avg.toFixed(1);
-      row.append(rank, name, score);
+      row.innerHTML = `<div class="leader-rank">${i+1}</div><div class="leader-name">${r.name} · ${r.rounds} rnds</div><div class="leader-score">${r.avg.toFixed(1)}</div>`;
       season.appendChild(row);
     });
   } else {
-    const map = new Map(); // tid -> {name, rounds, sum}
+    const map = new Map();
     rounds.forEach(r=>{
       if(!r.scoresTeam) return;
       Object.entries(r.scoresTeam).forEach(([tid, arr])=>{
@@ -709,60 +664,27 @@ function renderSeasonLeaderboard(){
       .sort((a,b)=> a.avg - b.avg || b.rounds - a.rounds || a.name.localeCompare(b.name));
     rows.forEach((r,i)=>{
       const row = document.createElement('div'); row.className='leader-row';
-      const rank = document.createElement('div'); rank.className='leader-rank'; rank.textContent = String(i+1);
-      const name = document.createElement('div'); name.className='leader-name'; name.textContent = r.name + `  ·  ${r.rounds} rnds`;
-      const score = document.createElement('div'); score.className='leader-score'; score.textContent = r.avg.toFixed(1);
-      row.append(rank, name, score);
+      row.innerHTML = `<div class="leader-rank">${i+1}</div><div class="leader-name">${r.name} · ${r.rounds} rnds</div><div class="leader-score">${r.avg.toFixed(1)}</div>`;
       season.appendChild(row);
     });
   }
 }
 
-/* ---------- Actions ---------- */
-addPlayerBtn.onclick=()=>{ const name=newPlayerName.value.trim(); if(!name) return;
-  const p={id:uid(), name}; players.push(p); newPlayerName.value=''; saveAll(); renderSetupPlayers(); renderPlayersChips(); renderVCard(); renderLiveLeaderboard(); renderSeasonLeaderboard(); renderTeamsTab(); renderRoster(); };
-newCourseBtn.onclick=()=>{ const name=prompt('Course name?','Potrero Golf Course'); if(!name) return;
-  const c={ id:uid(), name, holes:Array.from({length:9},(_,i)=>({number:i+1,name:`Hole ${i+1}`})) };
-  courses.push(c); activeCourseId=c.id; saveAll(); renderAll();
-};
-delCourseBtn.onclick=()=>{ if(courses.length<=1) return alert('Keep at least one course.');
-  if(!confirm('Delete current course?')) return;
-  courses=courses.filter(c=>c.id!==activeCourseId); activeCourseId=courses[0].id; saveAll(); renderAll();
-};
-function startNewRound(){ const d=nextSunday(); dateISO=d.toISOString();
-  scores={}; selectedPlayerIds.forEach(pid => scores[pid]=Array(9).fill(0));
-  teamScores={t1:Array(9).fill(0), t2:Array(9).fill(0), t3:Array(9).fill(0)};
-  save(LS.teamScores, teamScores);
-  dateInput.value = toLocalInput(new Date(dateISO));
-  renderVCard(); renderLiveLeaderboard();
-}
-function saveRound(){ const r={ id:uid(), date:new Date(dateInput.value||new Date()).toISOString(), courseId:activeCourseId, playerIds:[...selectedPlayerIds], scores:{}, scoresTeam:{} };
-  selectedPlayerIds.forEach(pid => r.scores[pid] = (scores[pid]||Array(9).fill(0)).slice());
-  ['t1','t2','t3'].forEach(tid => { const arr = (teamScores[tid]||Array(9).fill(0)).slice(); if(arr.some(x=>x>0)) r.scoresTeam[tid]=arr; });
-  rounds.unshift(r); saveAll(); renderRounds(); renderSeasonLeaderboard(); alert('Round saved!');
-}
-function toCSV(round, players){
-  const header=['Hole', ...round.playerIds.map(pid => (players.find(p=>p.id===pid)||{name:pid}).name)];
-  const rows = Array.from({length:9}, (_,i)=>{
-    const row = ['H'+(i+1)];
-    round.playerIds.forEach(pid => row.push((round.scores[pid]||Array(9).fill(0))[i]||0));
-    return row;
-  });
-  const totals = ['Total', ...round.playerIds.map(pid => (round.scores[pid]||Array(9).fill(0)).reduce((a,b)=>a+b,0))];
-  const all = [header, ...rows, totals];
-  return all.map(r => r.map(v => String(v)).join('\\n'));
-}
-function exportCSV(){ const course=courses.find(c=>c.id===activeCourseId);
-  const tempRound={ id:'temp', date:new Date(dateInput.value||new Date()).toISOString(), courseId:activeCourseId, playerIds:selectedPlayerIds, scores, scoresTeam: teamScores };
-  const courseName=(course?.name||'Course').replace(/\\s+/g,'_');
-  download(`${courseName}_${tempRound.date.slice(0,10)}.csv`, toCSV(tempRound, players), 'text/csv');
-}
+/* ---------- Save / Backup ---------- */
 function exportJSON(){ download('golf9_data.json', JSON.stringify({players,courses,rounds,teams,mode:load(LS.mode, 'individual')}, null, 2), 'application/json'); }
 function saveAll(){ save(LS.players,players); save(LS.courses,courses); save(LS.rounds,rounds); save(LS.teams,teams); save(LS.mode, scoreMode.value); save(LS.teamScores, teamScores); }
 
 /* ---------- Init ---------- */
-function renderAll(){ renderCourseSelect(); renderPlayersChips(); renderSetupPlayers(); renderVCard(); renderRounds(); renderTeamsTab(); renderLiveLeaderboard(); renderSeasonLeaderboard(); scoreMode.value = mode; leaderMode.value = mode; }
-function init(){ renderAll(); const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalInput(d); }
+function init(){
+  renderCourseSelect();
+  renderPlayersChips();
+  renderSetupPlayers();
+  renderTeamsTab();
+  renderVCard();
+  renderLiveLeaderboard();
+  renderSeasonLeaderboard();
+  const d=nextSunday(); dateISO=d.toISOString(); dateInput.value=toLocalInput(d);
+}
 init();
 </script>
 </body>

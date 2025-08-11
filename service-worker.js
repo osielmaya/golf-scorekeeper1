@@ -1,5 +1,5 @@
 // Service worker with auto-refresh (responds to SKIP_WAITING)
-const CACHE_NAME = 'golf9-auto-v7';
+const CACHE_NAME = 'golf9-auto-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -18,10 +18,9 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 self.addEventListener('fetch', (event) => {
-  const req = event.request;
   event.respondWith(
-    caches.match(req).then(cached => cached || fetch(req).then(resp => {
-      const copy = resp.clone(); caches.open(CACHE_NAME).then(cache => cache.put(req, copy)); return resp;
+    caches.match(event.request).then(cached => cached || fetch(event.request).then(resp => {
+      const copy = resp.clone(); caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)); return resp;
     }).catch(() => caches.match('./index.html')))
   );
 });
