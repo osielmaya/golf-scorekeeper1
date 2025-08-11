@@ -43,7 +43,7 @@ thead th{position:sticky;top:0;background:#f3f4f6;z-index:1}
 <body>
 <div class="wrap">
   <h1>Potrero Golf Course — 9‑Hole Scorekeeper</h1>
-  <p class="muted">Build: <strong>clean-rebuild-preset</strong></p>
+  <p class="muted">Build: <strong>cutshort-dnf</strong></p>
 
   <div class="tabs">
     <div class="tab active" data-tab="score">Scorecard</div>
@@ -369,16 +369,53 @@ function renderRounds(){
   });
 }
 
-function playerHasZero(pid){ const arr=scores[pid]||[]; return arr.length<9 || arr.some(v=>!v||v===0); }
+
+function holesPlayedArray(arr){ if(!Array.isArray(arr)) return 0; return arr.reduce((c,v)=> c + ((v&&v>0)?1:0), 0); }
+function currentPlayedHolesIndividual(){
+  // max holes any selected player actually recorded (>0)
+  let maxh = 0;
+  (selectedPlayerIds||[]).forEach(pid => { const arr = scores[pid]||[]; const h = holesPlayedArray(arr); if(h>maxh) maxh=h; });
+  return maxh;
+}
+function currentPlayedHolesTeams(){
+  let maxh = 0;
+  ['t1','t2','t3'].forEach(tid => { const arr = teamScores[tid]||[]; const members = (teams[tid]&&teams[tid].members)||[]; if(members.length>0){ const h = holesPlayedArray(arr); if(h>maxh) maxh=h; } });
+  return maxh;
+}
+function playerIsDNF(pid){
+  const arr = scores[pid]||[];
+  const played = holesPlayedArray(arr);
+  const groupPlayed = currentPlayedHolesIndividual();
+  return played < groupPlayed;
+}
+function teamIsDNF(tid){
+  const arr = teamScores[tid]||[];
+  const played = holesPlayedArray(arr);
+  const groupPlayed = currentPlayedHolesTeams();
+  return played < groupPlayed;
+}
 function teamHasZero(tid){ const arr=teamScores[tid]||[]; return arr.length<9 || arr.some(v=>!v||v===0); }
+
 
 function computeRanking(){
   if(mode==='individual'){
-    return selectedPlayerIds.map(pid=>({ key:pid, name:(players.find(p=>p.id===pid)||{name:pid}).name, total:(scores[pid]||Array(9).fill(0)).reduce((a,b)=>a+(b||0),0), dnf:playerHasZero(pid) }))
-      .sort((a,b)=>(a.dnf-b.dnf)||a.total-b.total||a.name.localeCompare(b.name));
-  }else{
-    return ['t1','t2','t3'].filter(tid=>teams[tid].members.length>0).map(tid=>({ key:tid, name:teams[tid].name, total:(teamScores[tid]||Array(9).fill(0)).reduce((a,b)=>a+(b||0),0), dnf:teamHasZero(tid) }))
-      .sort((a,b)=>(a.dnf-b.dnf)||a.total-b.total||a.name.localeCompare(b.name));
+    const groupPlayed = Math.max(1, currentPlayedHolesIndividual());
+    return selectedPlayerIds.map(pid=>{
+      const name=(players.find(p=>p.id===pid)||{name:pid}).name;
+      const arr=(scores[pid]||Array(9).fill(0)).slice(0, groupPlayed);
+      const dnf = playerIsDNF(pid);
+      const total = dnf ? 0 : arr.reduce((a,b)=>a+(b||0),0);
+      return { key:pid, name, total, dnf };
+    }).sort((a,b)=> (a.dnf-b.dnf) || a.total - b.total || a.name.localeCompare(b.name));
+  } else {
+    const groupPlayed = Math.max(1, currentPlayedHolesTeams());
+    return ['t1','t2','t3'].filter(tid=>teams[tid].members.length>0).map(tid=>{
+      const name = teams[tid].name || tid.toUpperCase();
+      const arr=(teamScores[tid]||Array(9).fill(0)).slice(0, groupPlayed);
+      const dnf = teamIsDNF(tid);
+      const total = dnf ? 0 : arr.reduce((a,b)=>a+(b||0),0);
+      return { key:tid, name, total, dnf };
+    }).sort((a,b)=> (a.dnf-b.dnf) || a.total - b.total || a.name.localeCompare(b.name));
   }
 }
 function renderLiveLeaderboard(){
@@ -388,15 +425,25 @@ function renderLiveLeaderboard(){
 }
 function renderSeasonLeaderboard(){ /* simple avg*/ }
 
+
 function anyIncomplete(){
-  if(mode==='individual'){ return selectedPlayerIds.some(pid=>playerHasZero(pid)); }
+  if(mode==='individual'){
+    const gp = currentPlayedHolesIndividual();
+    // If gp < 9, round is cut short. Confirm on finalize.
+    return gp < 9;
+  } else {
+    const gp = currentPlayedHolesTeams();
+    return gp < 9;
+  }
+}
   return ['t1','t2','t3'].filter(tid=>teams[tid].members.length>0).some(tid=>teamHasZero(tid));
 }
+
 function computeWinners(){
-  const list=computeRanking().filter(r=>!r.dnf);
-  if(list.length===0) return [];
-  const min=Math.min(...list.map(r=>r.total));
-  return list.filter(r=>r.total===min);
+  const rows = computeRanking().filter(r=>!r.dnf);
+  if(rows.length===0) return [];
+  const min = Math.min(...rows.map(r=>r.total));
+  return rows.filter(r=>r.total===min);
 }
 
 function renderCongratsModal(winners, ranking){
@@ -415,7 +462,7 @@ function renderCongratsModal(winners, ranking){
 }
 
 function finalizeRound(){
-  if(anyIncomplete()){ if(!confirm('Round looks cut short. Proceed to finalize? Players/teams with 0 will be excluded.')) return; }
+  if(anyIncomplete()){ if(!confirm('Round looks cut short. Proceed to finalize based on the holes everyone completed? Players/teams with fewer holes than the rest will be DNF.')) return; }
   const winners=computeWinners(); if(winners.length===0){ alert('No eligible scores to finalize.'); return; }
   winnerKeys=winners.map(w=>w.key); renderVCard();
   const ranking=computeRanking();
