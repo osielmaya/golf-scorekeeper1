@@ -39,11 +39,16 @@ thead th{position:sticky;top:0;background:#f3f4f6;z-index:1}
 .gridnums button{height:54px;border-radius:12px;border:1px solid var(--border);background:#f8fafc;font-size:24px;font-weight:bold;color:#000}
 .win{background:#d1fae5 !important}.wintext{color:#065f46;font-weight:700}
 </style>
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 </head>
 <body>
 <div class="wrap">
   <h1>Potrero Golf Course — 9‑Hole Scorekeeper</h1>
-  <p class="muted">Build: <strong>stable-cutshort-tie-auto-full</strong></p>
+  <p class="muted">Build: <strong>PWA</strong></p>
 
   <div class="tabs">
     <div class="tab active" data-tab="score">Scorecard</div>
@@ -142,6 +147,7 @@ thead th{position:sticky;top:0;background:#f3f4f6;z-index:1}
       <div class="card-c">
         <div class="row">
           <button id="btnExport">Export JSON</button>
+          <button id="btnUpdate" class="ghost">Check for Update</button>
           <input id="fileInput" type="file" accept="application/json" style="display:none" />
           <button id="btnImport" class="ghost">Import JSON</button>
         </div>
@@ -580,6 +586,35 @@ function init(){
   setInterval(()=>{ try{ saveDraft(); }catch(e){} }, 3000);
 }
 init();
+
+// ---- PWA registration & update ----
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('./service-worker.js');
+      // Manual update trigger
+      const btnUp = document.getElementById('btnUpdate');
+      if (btnUp) {
+        btnUp.onclick = async () => {
+          const reg2 = await navigator.serviceWorker.getRegistration();
+          await reg2?.update();
+          if (reg2?.waiting) {
+            reg2.waiting.postMessage('SKIP_WAITING');
+          } else {
+            alert('No update found.');
+          }
+        };
+      }
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // reload to activate new SW
+        window.location.reload();
+      });
+    } catch (e) {
+      console.warn('SW register failed', e);
+    }
+  });
+}
+
 </script>
 </body>
 </html>

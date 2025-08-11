@@ -1,10 +1,12 @@
 {
   "name": "Potrero Golf Course \u2014 Scorekeeper",
   "short_name": "Potrero Golf",
-  "start_url": ".",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f7fb",
+  "background_color": "#0f172a",
   "theme_color": "#0f172a",
+  "description": "9\u2011hole golf scorekeeper with teams, tie playoff, and offline support.",
   "icons": [
     {
       "src": "icon-192.png",
@@ -17,8 +19,14 @@
       "type": "image/png"
     },
     {
-      "src": "apple-touch-icon.png",
-      "sizes": "180x180",
+      "src": "icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
