@@ -32,7 +32,7 @@ thead th{position:sticky;top:0;background:#f3f4f6;z-index:1}
 .tiny-roster{font-size:.85rem;color:#374151;margin:6px 0 10px 0}
 .bigfinal{height:50px;font-size:18px;font-weight:800;border-radius:14px;width:100%}
 /* keypad */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:end;justify-content:center;z-index:1000}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:end;justify-content:center;z-index:2000}
 .sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:14px 14px 20px;box-shadow:0 -10px 30px rgba(0,0,0,.2)}
 .sheet-h{display:flex;align-items:center;justify-content:space-between}
 .gridnums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
@@ -43,7 +43,7 @@ thead th{position:sticky;top:0;background:#f3f4f6;z-index:1}
 <body>
 <div class="wrap">
   <h1>Potrero Golf Course — 9‑Hole Scorekeeper</h1>
-  <p class="muted">Build: <strong>stable-cutshort-fixed</strong></p>
+  <p class="muted">Build: <strong>stable-cutshort-tie-auto-full</strong></p>
 
   <div class="tabs">
     <div class="tab active" data-tab="score">Scorecard</div>
@@ -150,6 +150,17 @@ thead th{position:sticky;top:0;background:#f3f4f6;z-index:1}
   </div>
 </div>
 
+<!-- Results / Tie Modal -->
+<div id="finalModal" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1100">
+  <div style="background:#fff;max-width:640px;width:94%;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden">
+    <div style="padding:16px 18px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-weight:700">Results</div>
+      <button id="finalClose" class="ghost">✕</button>
+    </div>
+    <div id="finalBody" style="padding:18px"></div>
+  </div>
+</div>
+
 <!-- keypad overlay -->
 <div id="overlay" class="overlay">
   <div class="sheet">
@@ -192,7 +203,7 @@ function uid(){return (crypto.randomUUID?crypto.randomUUID():Math.random().toStr
 
 // ---- data ----
 let players=load(LS.players,[]);
-// Ensure preset players exist (merge if missing)
+// ensure preset players exist
 (function ensurePresetPlayers(){
   const required = ['Eric','Luz','Osiel','Francisco','Javier','Rafael'];
   const lower = new Set(players.map(p => (p.name||'').toLowerCase()));
@@ -204,6 +215,7 @@ let players=load(LS.players,[]);
   });
   save(LS.players, players);
 })();
+
 let rounds=load(LS.rounds,[]);
 let teams=load(LS.teams,{t1:{name:'Team 1',members:[]},t2:{name:'Team 2',members:[]},t3:{name:'Team 3',members:[]}});
 let mode=load(LS.mode,'individual');
@@ -224,11 +236,7 @@ let winnerKeys=[];
   }catch{}
 })();
 
-// seed players if none
-if(players.length===0){ players=[
-  {id:uid(),name:'Eric'},{id:uid(),name:'Luz'},{id:uid(),name:'Osiel'},
-  {id:uid(),name:'Francisco'},{id:uid(),name:'Javier'},{id:uid(),name:'Rafael'}
-];}
+// if no selected players yet, default first 4
 if(selectedPlayerIds.length===0) selectedPlayerIds=players.slice(0,4).map(p=>p.id);
 selectedPlayerIds.forEach(pid=>{ if(!Array.isArray(scores[pid])) scores[pid]=Array(9).fill(0); });
 
@@ -294,9 +302,9 @@ function renderVCard(){
   const trt=document.createElement('tr');
   const tht=document.createElement('th'); tht.textContent='Total'; tht.className='namecell'; trt.appendChild(tht);
   if(mode==='individual'){
-    selectedPlayerIds.forEach(pid=>{ const arr=scores[pid]||Array(9).fill(0); const total=arr.reduce((a,b)=>a+(b||0),0); const td=document.createElement('td'); td.textContent=String(total); trt.appendChild(td); });
+    selectedPlayerIds.forEach(pid=>{ const arr=scores[pid]||Array(9).fill(0); const gp=Math.max(1,currentPlayedHolesIndividual()); const total=arr.slice(0,gp).reduce((a,b)=>a+(b||0),0); const td=document.createElement('td'); td.textContent=String(total); trt.appendChild(td); });
   }else{
-    ['t1','t2','t3'].forEach(tid=>{ const t=teams[tid]; if(t.members.length>0){ const arr=teamScores[tid]||Array(9).fill(0); const total=arr.reduce((a,b)=>a+(b||0),0); const td=document.createElement('td'); td.textContent=String(total); trt.appendChild(td); } });
+    ['t1','t2','t3'].forEach(tid=>{ const t=teams[tid]; if(t.members.length>0){ const arr=teamScores[tid]||Array(9).fill(0); const gp=Math.max(1,currentPlayedHolesTeams()); const total=arr.slice(0,gp).reduce((a,b)=>a+(b||0),0); const td=document.createElement('td'); td.textContent=String(total); trt.appendChild(td); } });
   }
   const tdBlank=document.createElement('td'); tdBlank.textContent=''; trt.appendChild(tdBlank); vBody.appendChild(trt);
 }
@@ -312,7 +320,7 @@ function setScore(type,key,idx,v){
 
 // ---- players / teams setup ----
 function renderSetupPlayers(){
-  playersList.innerHTML='';
+  const playersList=document.getElementById('playersList'); playersList.innerHTML='';
   players.forEach(p=>{
     const row=document.createElement('div'); row.className='row';
     const name=document.createElement('input'); name.value=p.name; name.oninput=()=>{ p.name=name.value; saveAll(); renderVCard(); renderLiveLeaderboard(); };
@@ -321,14 +329,16 @@ function renderSetupPlayers(){
     row.append(name,del); playersList.appendChild(row);
   });
 }
-el('addPlayerBtn').onclick=()=>{ const name=el('newPlayerName').value.trim(); if(!name) return; const p={id:uid(),name}; players.push(p); el('newPlayerName').value=''; saveAll(); saveDraft(); renderSetupPlayers(); renderPlayersChips(); renderVCard(); };
+document.getElementById('addPlayerBtn').onclick=()=>{ const name=document.getElementById('newPlayerName').value.trim(); if(!name) return; const p={id:uid(),name}; players.push(p); document.getElementById('newPlayerName').value=''; saveAll(); saveDraft(); renderSetupPlayers(); renderPlayersChips(); renderVCard(); };
 
 function renderTeamsTab(){
-  el('team1Name').value=teams.t1.name||'Team 1'; el('team2Name').value=teams.t2.name||'Team 2'; el('team3Name').value=teams.t3.name||'Team 3';
-  el('team1Name').oninput=()=>{ teams.t1.name=el('team1Name').value; saveAll(); renderVCard(); renderLiveLeaderboard(); };
-  el('team2Name').oninput=()=>{ teams.t2.name=el('team2Name').value; saveAll(); renderVCard(); renderLiveLeaderboard(); };
-  el('team3Name').oninput=()=>{ teams.t3.name=el('team3Name').value; saveAll(); renderVCard(); renderLiveLeaderboard(); };
-  const list=el('teamAssignList'); list.innerHTML='';
+  document.getElementById('team1Name').value=teams.t1.name||'Team 1';
+  document.getElementById('team2Name').value=teams.t2.name||'Team 2';
+  document.getElementById('team3Name').value=teams.t3.name||'Team 3';
+  document.getElementById('team1Name').oninput=()=>{ teams.t1.name=document.getElementById('team1Name').value; saveAll(); renderVCard(); renderLiveLeaderboard(); };
+  document.getElementById('team2Name').oninput=()=>{ teams.t2.name=document.getElementById('team2Name').value; saveAll(); renderVCard(); renderLiveLeaderboard(); };
+  document.getElementById('team3Name').oninput=()=>{ teams.t3.name=document.getElementById('team3Name').value; saveAll(); renderVCard(); renderLiveLeaderboard(); };
+  const list=document.getElementById('teamAssignList'); list.innerHTML='';
   players.forEach(p=>{
     const row=document.createElement('div'); row.className='row'; row.style.justifyContent='space-between'; row.style.width='100%';
     const label=document.createElement('div'); label.textContent=p.name; label.style.flex='1';
@@ -341,7 +351,6 @@ function renderTeamsTab(){
 }
 
 // ---- rounds & leaderboard ----
-function nextSunday(){ const now=new Date(); const diff=(7-now.getDay())%7; const d=new Date(now); d.setDate(now.getDate()+diff); d.setHours(9,0,0,0); return d; }
 document.getElementById('btnSave').onclick=()=>{
   const r={id:uid(), date:new Date().toISOString(), playerIds:[...selectedPlayerIds], scores:{}, scoresTeam:{}};
   selectedPlayerIds.forEach(pid=> r.scores[pid]=(scores[pid]||Array(9).fill(0)).slice());
@@ -364,93 +373,12 @@ function renderRounds(){
   rounds.forEach(r=>{
     const row=document.createElement('div'); row.className='row'; row.style.justifyContent='space-between';
     const left=document.createElement('div'); const dt=new Date(r.date); left.textContent=`${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`; left.style.flex='1';
-    const del=document.createElement('button'); del.className='warn'; del.textContent='Delete'; del.onclick=()=>{ rounds=rounds.filter(x=>x.id!==r.id); saveAll(); renderRounds(); renderSeasonLeaderboard(); };
+    const del=document.createElement('button'); del.className='warn'; del.textContent='Delete'; del.onclick=()=>{ rounds=rounds.filter(x=>x.id!==r.id); saveAll(); renderRounds(); };
     row.append(left,del); box.appendChild(row);
   });
 }
 
-function playerHasZero(pid){ const arr=scores[pid]||[]; return arr.length<9 || arr.some(v=>!v||v===0); }
-function teamHasZero(tid){ const arr=teamScores[tid]||[]; return arr.length<9 || arr.some(v=>!v||v===0); }
-
-function computeRanking(){
-  if(mode==='individual'){
-    return selectedPlayerIds.map(pid=>({ key:pid, name:(players.find(p=>p.id===pid)||{name:pid}).name, total:(scores[pid]||Array(9).fill(0)).reduce((a,b)=>a+(b||0),0), dnf:playerHasZero(pid) }))
-      .sort((a,b)=>(a.dnf-b.dnf)||a.total-b.total||a.name.localeCompare(b.name));
-  }else{
-    return ['t1','t2','t3'].filter(tid=>teams[tid].members.length>0).map(tid=>({ key:tid, name:teams[tid].name, total:(teamScores[tid]||Array(9).fill(0)).reduce((a,b)=>a+(b||0),0), dnf:teamHasZero(tid) }))
-      .sort((a,b)=>(a.dnf-b.dnf)||a.total-b.total||a.name.localeCompare(b.name));
-  }
-}
-function renderLiveLeaderboard(){
-  const live=document.getElementById('liveLeaders'); if(!live) return;
-  const rows=computeRanking(); live.innerHTML='';
-  rows.forEach((r,i)=>{ const div=document.createElement('div'); div.className='row'; div.style.justifyContent='space-between'; div.style.border='1px solid #e5e7eb'; div.style.borderRadius='10px'; div.style.padding='8px 10px'; div.innerHTML=`<div>${i+1}. ${r.name}${r.dnf?' · DNF':''}</div><div style="font-weight:700">${r.dnf?'-':r.total}</div>`; live.appendChild(div); });
-}
-function renderSeasonLeaderboard(){ /* simple avg*/ }
-
-function anyIncomplete(){
-  if(mode==='individual'){ return selectedPlayerIds.some(pid=>playerHasZero(pid)); }
-  return ['t1','t2','t3'].filter(tid=>teams[tid].members.length>0).some(tid=>teamHasZero(tid));
-}
-function computeWinners(){
-  const list=computeRanking().filter(r=>!r.dnf);
-  if(list.length===0) return [];
-  const min=Math.min(...list.map(r=>r.total));
-  return list.filter(r=>r.total===min);
-}
-
-function renderCongratsModal(winners, ranking){
-  const modal=document.createElement('div'); modal.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1100";
-  const card=document.createElement('div'); card.style.cssText="background:#fff;max-width:640px;width:94%;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden";
-  const head=document.createElement('div'); head.style.cssText="padding:16px 18px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center";
-  head.innerHTML='<div style="font-weight:700">Results</div>';
-  const body=document.createElement('div'); body.style.cssText="padding:18px";
-  const t=document.createElement('div'); t.style.cssText="font-size:1.4rem;margin-bottom:8px;font-weight:700"; t.textContent="Congratulations!";
-  const n=document.createElement('div'); n.style.cssText="font-size:2rem;font-weight:800;margin-bottom:12px"; n.textContent = winners.map(w=>w.name).join(' & ');
-  const sub=document.createElement('div'); sub.style.margin="8px 0 12px 0"; sub.textContent="Final ranking:";
-  const list=document.createElement('div'); list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='6px';
-  ranking.forEach((r,i)=>{ const row=document.createElement('div'); row.style.cssText="display:flex;justify-content:space-between;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px"; row.innerHTML=`<div>${i+1}. ${r.name}${r.dnf?' · DNF':''}</div><div style="font-weight:700">${r.dnf?'-':r.total}</div>`; list.appendChild(row); });
-  const ok=document.createElement('button'); ok.textContent='OK'; ok.onclick=()=>document.body.removeChild(modal);
-  body.append(t,n,sub,list,ok); card.append(head,body); modal.append(card); document.body.appendChild(modal);
-}
-
-function finalizeRound(){
-  if(anyIncomplete()){ if(!confirm('Round looks cut short. Proceed to finalize based on the holes everyone completed? Players/teams with fewer holes than the rest will be DNF.')) return; }
-  const winners=computeWinners(); if(winners.length===0){ alert('No eligible scores to finalize.'); return; }
-  winnerKeys=winners.map(w=>w.key); renderVCard();
-  const ranking=computeRanking();
-  renderCongratsModal(winners, ranking);
-  // Auto-save
-  const r={id:uid(), date:new Date().toISOString(), playerIds:[...selectedPlayerIds], scores:{}, scoresTeam:{}};
-  selectedPlayerIds.forEach(pid=> r.scores[pid]=(scores[pid]||Array(9).fill(0)).slice());
-  ['t1','t2','t3'].forEach(tid=>{ const arr=(teamScores[tid]||Array(9).fill(0)).slice(); if(arr.some(x=>x>0)) r.scoresTeam[tid]=arr; });
-  rounds.unshift(r); saveAll(); localStorage.removeItem(LS.draft);
-}
-
-document.addEventListener('click', (e)=>{ if(e.target && e.target.id==='btnFinalize'){ try{ finalizeRound(); }catch(err){} } });
-
-// ---- mode select binding
-const scoreMode=el('scoreMode'); scoreMode.value=mode;
-scoreMode.onchange=()=>{ mode=scoreMode.value; save(LS.mode,mode); saveDraft(); renderVCard(); renderLiveLeaderboard(); };
-
-// ---- init
-function init(){
-  renderPlayersChips();
-  renderSetupPlayers();
-  renderTeamsTab();
-  renderVCard();
-  renderLiveLeaderboard();
-  renderRounds();
-  saveAll(); saveDraft();
-  // Save on lifecycle
-  document.addEventListener('visibilitychange', ()=>{ try{ saveDraft(); }catch(e){} });
-  window.addEventListener('pagehide', ()=>{ try{ saveDraft(); }catch(e){} });
-  window.addEventListener('beforeunload', ()=>{ try{ saveDraft(); }catch(e){} });
-  setInterval(()=>{ try{ saveDraft(); }catch(e){} }, 3000);
-}
-init();
-
-// ---- cut-short helpers (stable) ----
+// ---- cut-short helpers ----
 function holesPlayedArray(arr){ if(!Array.isArray(arr)) return 0; return arr.reduce((c,v)=> c + ((v&&v>0)?1:0), 0); }
 function currentPlayedHolesIndividual(){
   let maxh = 0; (selectedPlayerIds||[]).forEach(pid => { const a=scores[pid]||[]; const h=holesPlayedArray(a); if(h>maxh) maxh=h; });
@@ -463,8 +391,6 @@ function currentPlayedHolesTeams(){
 function playerIsDNF(pid){ const played=holesPlayedArray(scores[pid]||[]); return played < currentPlayedHolesIndividual(); }
 function teamIsDNF(tid){ const played=holesPlayedArray(teamScores[tid]||[]); return played < currentPlayedHolesTeams(); }
 
-// Override ranking/winner functions to use cut-short logic but keep signatures
-const _computeRanking_orig = (typeof computeRanking==='function') ? computeRanking : null;
 function computeRanking(){
   if(mode==='individual'){
     const gp = Math.max(1, currentPlayedHolesIndividual());
@@ -485,7 +411,6 @@ function computeRanking(){
     }).sort((a,b)=>(a.dnf-b.dnf)||a.total-b.total||a.name.localeCompare(b.name));
   }
 }
-const _computeWinners_orig = (typeof computeWinners==='function') ? computeWinners : null;
 function computeWinners(){
   const rows = computeRanking().filter(r=>!r.dnf);
   if(rows.length===0) return [];
@@ -497,6 +422,164 @@ function anyIncomplete(){
   return currentPlayedHolesTeams() < 9;
 }
 
+// ---- congrats + tie modal (auto-close) ----
+function renderCongratsModal(winners, ranking){
+  const modal=document.createElement('div'); modal.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:2100";
+  const card=document.createElement('div'); card.style.cssText="background:#fff;max-width:640px;width:94%;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden";
+  const head=document.createElement('div'); head.style.cssText="padding:16px 18px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center";
+  head.innerHTML='<div style="font-weight:700">Results</div>';
+  const body=document.createElement('div'); body.style.cssText="padding:18px";
+  const t=document.createElement('div'); t.style.cssText="font-size:1.4rem;margin-bottom:8px;font-weight:700"; t.textContent="Congratulations!";
+  const n=document.createElement('div'); n.style.cssText="font-size:2rem;font-weight:800;margin-bottom:12px"; n.textContent = winners.map(w=>w.name).join(' & ');
+  const sub=document.createElement('div'); sub.style.margin="8px 0 12px 0"; sub.textContent="Final ranking:";
+  const list=document.createElement('div'); list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='6px';
+  ranking.forEach((r,i)=>{ const row=document.createElement('div'); row.style.cssText="display:flex;justify-content:space-between;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px"; row.innerHTML=`<div>${i+1}. ${r.name}${r.dnf?' · DNF':''}</div><div style="font-weight:700">${r.dnf?'-':r.total}</div>`; list.appendChild(row); });
+  const ok=document.createElement('button'); ok.textContent='OK'; ok.onclick=()=>document.body.removeChild(modal);
+  body.append(t,n,sub,list,ok); card.append(head,body); modal.append(card); document.body.appendChild(modal);
+}
+
+let playoffState = null; // {entries:[{key,name}], holes, scores, mode}
+function showFinalModal(contentEl){
+  const body = document.getElementById('finalBody');
+  body.innerHTML='';
+  body.appendChild(contentEl);
+  document.getElementById('finalModal').style.display='flex';
+}
+document.getElementById('finalClose').onclick = ()=>{ document.getElementById('finalModal').style.display='none'; playoffState=null; };
+
+function renderTieModal(tiedRows){
+  const wrap=document.createElement('div');
+  const title=document.createElement('div'); title.style.fontSize='1.2rem'; title.style.fontWeight='700'; title.textContent='Tie detected';
+  const desc=document.createElement('div'); desc.style.margin='6px 0 10px 0'; desc.textContent='Choose a tiebreak: playoff (1–3 holes), keep tied, or pick a winner.';
+
+  const row=document.createElement('div'); row.style.display='flex'; row.style.gap='8px'; row.style.flexWrap='wrap'; row.style.alignItems='center';
+  const sel=document.createElement('select'); [1,2,3].forEach(n=> sel.appendChild(new Option(`${n} hole${n>1?'s':''}`, n)));
+  const start=document.createElement('button'); start.textContent='Start playoff';
+  start.onclick=()=>{
+    playoffState = { entries: tiedRows.map(r=>({key:r.key,name:r.name})), holes: parseInt(sel.value,10), scores:{}, mode: mode };
+    tiedRows.forEach(r => playoffState.scores[r.key] = Array(parseInt(sel.value,10)).fill(0));
+    renderPlayoffEntry();
+  };
+  row.append(sel,start);
+
+  const keep=document.createElement('button'); keep.className='ghost'; keep.textContent='Keep tied';
+  keep.onclick=()=>{
+    const ranking = computeRanking();
+    document.getElementById('finalModal').style.display='none';
+    renderCongratsModal(tiedRows, ranking);
+  };
+
+  const assignWrap=document.createElement('div'); assignWrap.style.marginTop='10px';
+  const label=document.createElement('div'); label.textContent='Or pick a winner:';
+  const pick=document.createElement('select'); tiedRows.forEach(r => pick.appendChild(new Option(r.name, r.key)));
+  const give=document.createElement('button'); give.textContent='Give win';
+  give.onclick=()=>{
+    const chosenKey = pick.value;
+    let ranking = computeRanking();
+    const ix = ranking.findIndex(r=>r.key===chosenKey);
+    if(ix>0){ const [w] = ranking.splice(ix,1); ranking.unshift(w); }
+    document.getElementById('finalModal').style.display='none';
+    renderCongratsModal([ranking[0]], ranking);
+  };
+  assignWrap.append(label,pick,give);
+
+  wrap.append(title,desc,row,keep,assignWrap);
+  showFinalModal(wrap);
+}
+
+function renderPlayoffEntry(){
+  const wrap=document.createElement('div');
+  const title=document.createElement('div'); title.style.fontWeight='700'; title.textContent=`Playoff — ${playoffState.holes} hole${playoffState.holes>1?'s':''}`;
+  const grid=document.createElement('table'); grid.style.width='100%';
+  const thead=document.createElement('thead'); const trh=document.createElement('tr');
+  trh.appendChild(document.createElement('th')).textContent='Hole';
+  playoffState.entries.forEach(e=>{ const th=document.createElement('th'); th.textContent=e.name; trh.appendChild(th); });
+  thead.appendChild(trh); grid.appendChild(thead);
+  const tbody=document.createElement('tbody');
+  for(let i=0;i<playoffState.holes;i++){
+    const tr=document.createElement('tr');
+    tr.appendChild(document.createElement('th')).textContent = `P${i+1}`;
+    playoffState.entries.forEach(e=>{
+      const td=document.createElement('td');
+      const btn=document.createElement('button'); btn.className='cellbtn'; btn.textContent=String(playoffState.scores[e.key][i]||0);
+      btn.onclick=()=>{ keypadTarget = {type:'playoff', key:e.key, idx:i}; directInput.value = playoffState.scores[e.key][i]||0; manualRow.style.display='none'; overlay.style.display='flex'; };
+      td.appendChild(btn); tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  }
+  grid.appendChild(tbody);
+  const finish=document.createElement('button'); finish.textContent='Finish playoff'; finish.style.marginTop='10px';
+  finish.onclick=()=>{
+    const rows = playoffState.entries.map(e => {
+      const total = (playoffState.scores[e.key]||[]).reduce((a,b)=>a+(b||0),0);
+      return {key:e.key, name:e.name, total};
+    });
+    const min = Math.min(...rows.map(r=>r.total));
+    const winners = rows.filter(r=>r.total===min);
+    if(winners.length===1){
+      let ranking = computeRanking();
+      const idx = ranking.findIndex(r => r.key===winners[0].key);
+      if(idx>0){ const [w] = ranking.splice(idx,1); ranking.unshift(w); }
+      document.getElementById('finalModal').style.display='none';
+      renderCongratsModal([winners[0]], ranking);
+    } else {
+      renderTieModal(winners);
+    }
+  };
+  wrap.append(title,grid,finish);
+  showFinalModal(wrap);
+}
+
+// extend setScore to support playoff keypad updates
+const __setScoreOrig = setScore;
+setScore = function(targetType, key, idx, v){
+  if(targetType==='playoff'){
+    if(!playoffState || !playoffState.scores[key]) return;
+    playoffState.scores[key][idx] = v;
+    renderPlayoffEntry();
+    return;
+  }
+  __setScoreOrig(targetType, key, idx, v);
+};
+
+// ---- finalize ----
+function finalizeRound(){
+  if(anyIncomplete()){ if(!confirm('Round looks cut short. Proceed to finalize based on the holes everyone completed? Players/teams with fewer holes than the rest will be DNF.')) return; }
+  const winners=computeWinners(); if(winners.length===0){ alert('No eligible scores to finalize.'); return; }
+  winnerKeys=winners.map(w=>w.key); renderVCard();
+  const ranking=computeRanking();
+  if(winners.length===1){ renderCongratsModal(winners, ranking); } else { renderTieModal(winners); }
+  // Auto-save
+  const r={id:uid(), date:new Date().toISOString(), playerIds:[...selectedPlayerIds], scores:{}, scoresTeam:{}};
+  selectedPlayerIds.forEach(pid=> r.scores[pid]=(scores[pid]||Array(9).fill(0)).slice());
+  ['t1','t2','t3'].forEach(tid=>{ const arr=(teamScores[tid]||Array(9).fill(0)).slice(); if(arr.some(x=>x>0)) r.scoresTeam[tid]=arr; });
+  rounds.unshift(r); saveAll(); localStorage.removeItem(LS.draft);
+}
+document.addEventListener('click', (e)=>{ if(e.target && e.target.id==='btnFinalize'){ try{ finalizeRound(); }catch(err){} } });
+
+// ---- mode select binding
+const scoreMode=el('scoreMode'); scoreMode.value=mode;
+scoreMode.onchange=()=>{ mode=scoreMode.value; save(LS.mode,mode); saveDraft(); renderVCard(); renderLiveLeaderboard(); };
+
+// ---- init
+function renderPlayersChips(){ const pc=document.getElementById('playersChips'); pc.innerHTML=''; players.forEach(p=>{ const lbl=document.createElement('label'); lbl.className='tab chip'; const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=selectedPlayerIds.includes(p.id); chk.onchange=()=>{ if(chk.checked){ if(!selectedPlayerIds.includes(p.id)) selectedPlayerIds.push(p.id); if(!scores[p.id]) scores[p.id]=Array(9).fill(0);} else { selectedPlayerIds=selectedPlayerIds.filter(id=>id!==p.id);} renderVCard(); renderLiveLeaderboard(); saveAll(); saveDraft(); }; const span=document.createElement('span'); span.textContent=p.name; lbl.append(chk,span); pc.appendChild(lbl); }); }
+function renderLiveLeaderboard(){ const live=document.getElementById('liveLeaders'); if(!live) return; const rows=computeRanking(); live.innerHTML=''; rows.forEach((r,i)=>{ const div=document.createElement('div'); div.className='row'; div.style.justifyContent='space-between'; div.style.border='1px solid #e5e7eb'; div.style.borderRadius='10px'; div.style.padding='8px 10px'; div.innerHTML=`<div>${i+1}. ${r.name}${r.dnf?' · DNF':''}</div><div style="font-weight:700">${r.dnf?'-':r.total}</div>`; live.appendChild(div); }); }
+function renderRounds(){ const box=document.getElementById('roundsList'); if(!box) return; box.innerHTML=''; if(rounds.length===0){ box.innerHTML='<div class="muted">No rounds saved yet.</div>'; return; } rounds.forEach(r=>{ const row=document.createElement('div'); row.className='row'; row.style.justifyContent='space-between'; const left=document.createElement('div'); const dt=new Date(r.date); left.textContent=`${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`; left.style.flex='1'; const del=document.createElement('button'); del.className='warn'; del.textContent='Delete'; del.onclick=()=>{ rounds=rounds.filter(x=>x.id!==r.id); saveAll(); renderRounds(); }; row.append(left,del); box.appendChild(row); }); }
+
+function init(){
+  renderPlayersChips();
+  renderSetupPlayers();
+  renderTeamsTab();
+  renderVCard();
+  renderLiveLeaderboard();
+  renderRounds();
+  saveAll(); saveDraft();
+  document.addEventListener('visibilitychange', ()=>{ try{ saveDraft(); }catch(e){} });
+  window.addEventListener('pagehide', ()=>{ try{ saveDraft(); }catch(e){} });
+  window.addEventListener('beforeunload', ()=>{ try{ saveDraft(); }catch(e){} });
+  setInterval(()=>{ try{ saveDraft(); }catch(e){} }, 3000);
+}
+init();
 </script>
 </body>
 </html>
