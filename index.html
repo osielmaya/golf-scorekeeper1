@@ -64,7 +64,7 @@
     .sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:14px 14px 20px 14px;box-shadow:0 -10px 30px rgba(0,0,0,.2)}
     .gridnums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
     .gridnums button{height:54px;border-radius:12px;border:1px solid var(--border);background:#f8fafc;font-size:18px;color:#111}
-    .sheet-h{display:flex;justify-content:space-between;align-items:center}
+    .sheet-h{display:flex;align-items:center;gap:8px;justify-content:space-between}
     .sheet-h .title{font-weight:700}
     .mode-wrap{display:flex;align-items:center;gap:8px}
     .roster{font-size:.9rem;color:#111}
@@ -80,6 +80,7 @@
     <div class="tabs">
       <div class="tab active" data-tab="score">Scorecard</div>
       <div class="tab" data-tab="leaderboard">Leaderboard</div>
+      <div class="tab" data-tab="players">Players</div>
       <div class="tab" data-tab="teams">Teams</div>
       <div class="tab" data-tab="courses">Courses</div>
       <div class="tab" data-tab="history">Past Rounds</div>
@@ -120,11 +121,6 @@
               </div>
             </div>
 
-            <div class="section" id="playersSection">
-              <label class="small">Players</label>
-              <div id="playersChips" class="row"></div>
-            </div>
-
             <div class="section vscore">
               <table id="vTable">
                 <thead id="vHead"></thead>
@@ -135,26 +131,25 @@
           </div>
         </div>
 
-        <!-- Right: Side panel (Players/Teams management + Roster in Team mode) -->
-        <div class="card">
-          <div class="card-h"><h2 id="sideTitle">Players</h2></div>
-          <div class="card-c">
-            <div id="playersManager">
-              <div class="list" id="playersList"></div>
-              <div class="row" style="margin-top:8px">
-                <input id="newPlayerName" class="flex" placeholder="Add player name" />
-                <button id="addPlayerBtn">Add</button>
-              </div>
-            </div>
-            <div id="rosterBox" class="roster" style="display:none;">
-              <h4>Team rosters</h4>
-              <div id="rosterTeams"></div>
-              <div class="muted" style="margin-top:6px">Edit teams in the <strong>Teams</strong> tab.</div>
-            </div>
+        <!-- Right: (removed) no side panel in Score tab -->
+      
+    <div id="tab-players" class="tabview" style="display:none">
+      <div class="card">
+        <div class="card-h"><h2>Players</h2></div>
+        <div class="card-c">
+          <div class="section">
+            <label class="small">Selected for scorecard</label>
+            <div id="playersChips" class="row"></div>
+          </div>
+          <div class="list" id="playersList"></div>
+          <div class="row" style="margin-top:8px">
+            <input id="newPlayerName" class="flex" placeholder="Add player name" />
+            <button id="addPlayerBtn">Add</button>
           </div>
         </div>
       </div>
     </div>
+
 
     <div id="tab-leaderboard" class="tabview" style="display:none">
       <div class="card">
@@ -254,6 +249,7 @@
     <div class="sheet">
       <div class="sheet-h">
         <div class="title">Set strokes</div>
+        <button id="closeOverlay" class="ghost" style="margin-left:auto">✕</button>
       </div>
       <div class="gridnums" id="keypad"></div>
       <div class="row" style="margin-top:10px;justify-content:flex-end">
@@ -279,6 +275,7 @@ document.querySelectorAll('.tab').forEach(t => {
     if(name==='history'){ renderRounds(); }
     if(name==='teams'){ renderTeamsTab(); }
     if(name==='courses'){ renderSetupCourse(); }
+    if(name==='players'){ renderPlayersChips(); renderSetupPlayers(); }
   });
 });
 
@@ -388,7 +385,7 @@ function buildKeypad(){
   }
 }
 buildKeypad();
-moreBtn.onclick = ()=>{ manualRow.style.display = 'flex'; setTimeout(()=> directInput.focus(), 10); };
+moreBtn.onclick = ()=>{ manualRow.style.display = 'flex'; };
 el('applyDirect').onclick = ()=>{ const v = Math.max(0, Math.min(20, parseInt(directInput.value||'0',10)||0)); if(keypadTarget){ setScore(keypadTarget.type, keypadTarget.key, keypadTarget.idx, v); } overlay.style.display='none'; manualRow.style.display='none'; };
 
 /* ---------- Rendering ---------- */
