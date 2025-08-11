@@ -121,6 +121,7 @@
           </div>
       </div>
     </div>
+<div class="row" style="margin:12px 14px 0 14px"><button id="btnFinalize" class="bigfinal" style="width:100%">Final Score</button></div>
 
     <!-- LEADERBOARD TAB -->
     <div id="tab-leaderboard" class="tabview" style="display:none">
@@ -273,6 +274,15 @@
 <script>
 
 /* ---------- Tabs ---------- */
+function setActiveTab(name){
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  const tabBtn = document.querySelector(`.tab[data-tab="${name}"]`);
+  if(tabBtn){ tabBtn.classList.add('active'); }
+  document.querySelectorAll('.tabview').forEach(v => v.style.display='none');
+  const view = document.getElementById('tab-'+name);
+  if(view){ view.style.display='block'; }
+}
+
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
@@ -287,6 +297,9 @@ document.querySelectorAll('.tab').forEach(t => {
     if(name==='players'){ renderPlayersChips(); renderSetupPlayers(); }
     if(name==='score'){ renderVCard(); }
   });
+
+document.addEventListener('DOMContentLoaded', ()=> setActiveTab('score'));
+window.addEventListener('load', ()=> setActiveTab('score'));
 });
 
 /* ---------- PWA registration + Auto-refresh ---------- */
@@ -327,7 +340,7 @@ if ('serviceWorker' in navigator) {
 }
 
 /* ---------- Utilities ---------- */
-const LS = { players:'g9_players_v5', courses:'g9_courses_v5', rounds:'g9_rounds_v5', teams:'g9_teams_v4', mode:'g9_mode_v3', teamScores:'g9_team_scores_v1', draft:'g9_draft_v1' };
+const LS = { players:'g9_players_v5', courses:'g9_courses_v5', rounds:'g9_rounds_v5', teams:'g9_teams_v4', mode:'g9_mode_v3', teamScores:'g9_team_scores_v1', draft:'g9_draft_v1', draft_backup:'g9_draft_backup_v1' };
 const el = id => document.getElementById(id);
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)); }
 function load(key, fallback){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback }catch{ return fallback } }
@@ -700,8 +713,8 @@ function renderSeasonLeaderboard(){
 /* ---------- Save / Backup ---------- */
 function exportJSON(){ download('golf9_data.json', JSON.stringify({players,courses,rounds,teams,mode:load(LS.mode, 'individual')}, null, 2), 'application/json'); }
 function saveAll(){ save(LS.players,players); save(LS.courses,courses); save(LS.rounds,rounds); save(LS.teams,teams); save(LS.mode, scoreMode.value); save(LS.teamScores, teamScores); }
-function saveDraft(){ const d={ mode: load(LS.mode,'individual'), courseId:activeCourseId, date: dateInput.value, playerIds:[...selectedPlayerIds], scores, teamScores }; save(LS.draft, d); }
-function loadDraft(){ const d=load(LS.draft, null); if(!d) return false; try{ if(d.courseId) activeCourseId=d.courseId; if(d.date) dateInput.value=d.date; if(Array.isArray(d.playerIds)&&d.playerIds.length){ selectedPlayerIds=d.playerIds; } if(d.scores) scores=d.scores; if(d.teamScores) teamScores=d.teamScores; if(d.mode){ save(LS.mode, d.mode); scoreMode.value=d.mode; leaderMode.value=d.mode; } return true; }catch(e){ return false; } }
+function saveDraft(){ const d={ mode: load(LS.mode,'individual'), courseId:activeCourseId, date: dateInput.value, playerIds:[...selectedPlayerIds], scores, teamScores }; save(LS.draft, d); save(LS.draft_backup, d); }
+function loadDraft(){ let d=load(LS.draft, null); if(!d) d=load(LS.draft_backup, null); if(!d) return false; try{ if(d.courseId) activeCourseId=d.courseId; if(d.date) dateInput.value=d.date; if(Array.isArray(d.playerIds)&&d.playerIds.length){ selectedPlayerIds=d.playerIds; } if(d.scores) scores=d.scores; if(d.teamScores) teamScores=d.teamScores; if(d.mode){ save(LS.mode, d.mode); scoreMode.value=d.mode; leaderMode.value=d.mode; } return true; }catch(e){ return false; } }
 
 /* ---------- Init ---------- */
 function init(){
@@ -719,6 +732,7 @@ function init(){
   const hadDraft = loadDraft();
 
   renderCourseSelect();
+  if(!courseSelect.value){ activeCourseId=courses[0].id; courseSelect.value=activeCourseId; }
   renderPlayersChips();
   renderSetupPlayers();
   renderTeamsTab();
