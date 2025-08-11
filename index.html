@@ -52,7 +52,8 @@
     .leader-rank{font-weight:700;width:36px;text-align:center}
     .leader-name{flex:1}
     .leader-score{font-weight:700;min-width:70px;text-align:right}
-    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:end;justify-content:center}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:end;justify-content:center;z-index:10050}
+    .bigfinal{height:60px;font-size:20px;font-weight:800;border-radius:16px;width:100%}
     .sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:14px 14px 20px 14px;box-shadow:0 -10px 30px rgba(0,0,0,.2)}
     .gridnums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
     .gridnums button{height:54px;border-radius:12px;border:1px solid var(--border);background:#f8fafc;font-size:24px;font-weight:bold;color:#000}
@@ -89,7 +90,6 @@
             </div>
             <button id="btnNew">New Round</button>
             <button id="btnSave">Save</button>
-            <button id="btnFinalize">Final Score</button>
             <button class="ghost" id="btnCSV">CSV</button>
           </div>
         </div>
@@ -114,7 +114,11 @@
               <tbody id="vBody"></tbody>
             </table>
           </div>
-        </div>
+        
+          <div class="row" style="margin-top:12px">
+            <button id="btnFinalize" class="bigfinal">Final Score</button>
+          </div>
+</div>
       </div>
     </div>
 
