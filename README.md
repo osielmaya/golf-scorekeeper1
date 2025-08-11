@@ -17,3 +17,7 @@
    - README.md
 2. Settings → Pages → Source: `main` → `/ (root)` → Save
 3. Open: https://osielmaya.github.io/golf-scorekeeper1/
+
+
+### Name your teams
+Go to the **Teams** tab and type any names you want for Team 1/2/3. The scorecard and leaderboard will use those names.
